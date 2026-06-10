@@ -1,24 +1,59 @@
+> 🌍 Read this in: **English** | [Česky](README.cs.md)
+
 # Claude Code extension examples
 
 This repo doubles as a showcase of the four **project-scoped** ways to extend
-Claude Code. Each example is independent, minimal, and tied to the 2048
-codebase so it can be demoed live. Everything is checked into the repo —
-anyone who clones it gets the full setup automatically.
+Claude Code. "Project-scoped" means the configuration lives **inside the
+repository** — when you `git clone` the project, you get the whole setup
+automatically. Nothing needs to be installed into your home directory.
 
-| # | Example | Mechanism | Where it lives |
-|---|---------|-----------|----------------|
-| 1 | [Skills](01-skills.md) | Reusable instructions Claude loads on demand | `.claude/skills/board-tests/SKILL.md` |
-| 2 | [Hooks](02-hooks.md) | Shell commands triggered by Claude Code events | `.claude/settings.json` + `.claude/hooks/format-cpp.sh` |
-| 3 | [MCP](03-mcp.md) | External tool servers Claude can call | `.mcp.json` |
-| 4 | [Plugins](04-plugins.md) | Bundled commands/skills distributed via a marketplace | `plugins/2048-dev/` + `.claude-plugin/marketplace.json` |
+Each example is independent and minimal. Work through them in order — they
+go from simplest to most advanced:
 
-## Quick demo script
+| # | Example | What it teaches | Where it lives |
+|---|---------|-----------------|----------------|
+| 1 | [Skills](01-skills.md) | Giving Claude reusable project knowledge it loads only when needed | `.claude/skills/board-tests/SKILL.md` |
+| 2 | [Hooks](02-hooks.md) | Running a shell command automatically when Claude does something (here: auto-format code) | `.claude/settings.json` + `.claude/hooks/format-cpp.sh` |
+| 3 | [MCP](03-mcp.md) | Connecting Claude to external tools and data sources | `.mcp.json` |
+| 4 | [Plugins](04-plugins.md) | Packaging commands/skills/hooks so a whole team can share them | `plugins/2048-dev/` + `.claude-plugin/marketplace.json` |
 
-1. **Skill** — ask: *"Add a test for sliding the line {4, 4, 8, 0}"* and watch
-   the `board-tests` skill load, or invoke it directly with `/board-tests`.
-2. **Hook** — ask Claude to edit any `.cpp` file with sloppy formatting; the
-   `PostToolUse` hook runs `clang-format` on it immediately after the edit.
-3. **MCP** — run `/mcp` to see the project servers, then ask: *"Use deepwiki
-   to look up how Catch2 generators work."*
-4. **Plugin** — run `/2048-dev:build-test` to configure, build, and test the
-   project in one command.
+Every guide exists in two languages: `xx-name.md` is English,
+`xx-name.cs.md` is Czech. They have the same content.
+
+## Before you start
+
+You need:
+
+1. **Claude Code installed** — see [code.claude.com](https://code.claude.com)
+   for install instructions, then run `claude` in a terminal to verify.
+2. **This repo cloned** — `git clone https://github.com/klesajos/dxc-ws`
+3. **A terminal opened in the repo folder** — all examples assume your
+   working directory is the repo root (the folder containing `CMakeLists.txt`).
+
+## Quick demo script (5 minutes)
+
+Open Claude Code in the repo (`cd dxc-ws && claude`) and try:
+
+1. **Skill** — ask: *"Add a test for sliding the line {4, 4, 8, 0}"*.
+   Watch Claude load the `board-tests` skill before writing the test.
+   You can also invoke it yourself by typing `/board-tests`.
+2. **Hook** — ask Claude to edit any `.cpp` file. Right after the edit,
+   the hook runs `clang-format` on the file — the code is always formatted,
+   even if Claude wrote it messy.
+3. **MCP** — type `/mcp` to see the two project servers, then ask:
+   *"Use deepwiki to look up how Catch2 generators work."*
+4. **Plugin** — type `/2048-dev:build-test` to configure, build, and test
+   the whole project with one command.
+
+## Which mechanism should I use when?
+
+A common beginner question. Rule of thumb:
+
+- **Skill** — when you want Claude to *know* something (conventions, how-tos).
+  Claude decides when to apply it. Think: documentation for the AI.
+- **Hook** — when something must happen *every single time*, no exceptions
+  (formatting, linting, blocking dangerous commands). The model has no say.
+- **MCP** — when Claude needs a *capability* it doesn't have (query a
+  database, search docs, control a browser).
+- **Plugin** — when you want to *share* any of the above across multiple
+  repos or with your whole team, as one versioned package.

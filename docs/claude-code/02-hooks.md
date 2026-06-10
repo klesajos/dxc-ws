@@ -1,24 +1,33 @@
+> 🌍 Read this in: **English** | [Česky](02-hooks.cs.md)
+
 # Example 2: Project-scoped hook
 
-**What it is:** a hook is a shell command Claude Code runs automatically when
-an event fires — deterministic automation that doesn't depend on the model
-remembering to do something.
+## What is a hook?
 
-**Where it lives:**
+A **hook** is a shell command that Claude Code runs **automatically** when a
+certain event happens — for example "after Claude edits a file" or "before
+Claude runs a terminal command".
+
+The key difference from a skill: a skill is *advice* the model may follow;
+a hook is *enforcement* that runs outside the model, **every single time**.
+Use hooks for things that must never be skipped: formatting, linting,
+blocking dangerous commands.
+
+## What this example does
+
+Every time Claude edits or creates a file, our hook checks whether it's a
+C++ file (`.cpp` / `.hpp`) — and if so, runs `clang-format` on it. Result:
+Claude's code always lands formatted according to the project's
+`.clang-format` rules, even if the model wrote it messy.
+
+Two files are involved:
 
 ```
-.claude/settings.json        # hook registration (project-scoped, checked in)
-.claude/hooks/format-cpp.sh  # the script it runs
+.claude/settings.json        ← registers WHEN to run the hook
+.claude/hooks/format-cpp.sh  ← the script that says WHAT to do
 ```
 
-## What this one does
-
-After every `Edit` or `Write` tool call (`PostToolUse` event), the hook runs
-`clang-format -i` on the touched file — but only if it's a `.cpp`/`.hpp`.
-The project's `.clang-format` (Google-based, 4-space indent, 88 cols) is
-applied, so Claude's edits always land already formatted.
-
-## How it's wired
+## Part 1: the registration (`.claude/settings.json`), line by line
 
 ```json
 {
@@ -27,7 +36,10 @@ applied, so Claude's edits always land already formatted.
       {
         "matcher": "Edit|Write",
         "hooks": [
-          { "type": "command", "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/format-cpp.sh" }
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/format-cpp.sh"
+          }
         ]
       }
     ]
@@ -35,20 +47,127 @@ applied, so Claude's edits always land already formatted.
 }
 ```
 
-- `PostToolUse` fires after a tool succeeds; `matcher` is a regex over tool
-  names, so this only runs for file edits — not for `Bash`, `Read`, etc.
-- The script receives the tool call as **JSON on stdin** and pulls out
-  `tool_input.file_path`; non-C++ paths exit silently with code 0.
-- `${CLAUDE_PROJECT_DIR}` resolves to the repo root, so the hook works
-  regardless of Claude's current working directory.
+- `"hooks"` — the top-level section of settings where all hooks live.
+- `"PostToolUse"` — the **event**: fire *after* Claude successfully uses a
+  tool. Other useful events: `PreToolUse` (before a tool runs — can block
+  it), `SessionStart`, `UserPromptSubmit`, `Stop` (when Claude finishes).
+- `"matcher": "Edit|Write"` — a filter on the **tool name**. The `|` means
+  "or", like in regular expressions: run only when the tool was `Edit` or
+  `Write` (the two tools Claude uses to change files). Without a matcher the
+  hook would also fire after every `Read`, `Bash`, etc.
+- `"type": "command"` — this hook runs a shell command (other types exist,
+  e.g. calling an HTTP endpoint).
+- `"command": "${CLAUDE_PROJECT_DIR}/..."` — the script to run.
+  `${CLAUDE_PROJECT_DIR}` is a variable Claude Code replaces with the
+  absolute path of the repo root — so the hook works no matter which
+  subdirectory Claude is currently in.
 
-## Other useful events
+## Part 2: the script (`.claude/hooks/format-cpp.sh`), line by line
 
-`PreToolUse` (can block a tool call), `SessionStart`, `UserPromptSubmit`,
-`Stop` (e.g. force tests to pass before Claude finishes), `Notification`.
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
 
-## Demo
+input=$(cat)
+```
 
-Ask Claude to add a method to `src/board.cpp` with deliberately bad
-formatting — `git diff` afterwards shows clang-format already cleaned it up,
-and the hook's output line appears in the transcript.
+- `#!/usr/bin/env bash` — the "shebang": tells the OS to run this file
+  with bash.
+- `set -euo pipefail` — safety switches: stop on any error (`-e`), treat
+  unset variables as errors (`-u`), fail a pipeline if any step fails
+  (`pipefail`). Standard practice for every bash script.
+- `input=$(cat)` — **this is how hooks receive data.** Claude Code sends
+  the details of the tool call as JSON on **stdin** (standard input).
+  `cat` reads all of it; we store it in the variable `input`.
+
+```bash
+if command -v jq >/dev/null 2>&1; then
+    file_path=$(printf '%s' "$input" | jq -r '.tool_input.file_path // empty')
+else
+    file_path=$(printf '%s' "$input" | python3 -c \
+        'import json,sys; print(json.load(sys.stdin).get("tool_input", {}).get("file_path", ""))')
+fi
+```
+
+- `command -v jq` — checks whether the JSON tool `jq` is installed
+  (`>/dev/null 2>&1` just hides the output of the check).
+- `jq -r '.tool_input.file_path // empty'` — extracts the edited file's
+  path from the JSON. The input looks like
+  `{"tool_name": "Edit", "tool_input": {"file_path": "/path/to/board.cpp", ...}}`,
+  so `.tool_input.file_path` navigates to the path. `// empty` means
+  "if missing, output nothing instead of the word null".
+- The `else` branch does exactly the same with Python — a fallback for
+  machines without `jq`.
+
+```bash
+if command -v clang-format >/dev/null 2>&1; then
+    formatter="clang-format"
+elif command -v xcrun >/dev/null 2>&1 && xcrun --find clang-format >/dev/null 2>&1; then
+    formatter="xcrun clang-format"
+else
+    exit 0
+fi
+```
+
+- Finds a usable formatter. On macOS, `clang-format` often isn't on PATH
+  but ships with Xcode command-line tools, reachable via `xcrun`.
+- `exit 0` — if there's no formatter at all, exit **successfully** and do
+  nothing. A non-zero exit code would surface as an error to Claude;
+  "formatter not installed" shouldn't break the session.
+
+```bash
+case "$file_path" in
+    *.cpp|*.hpp)
+        if [ -f "$file_path" ]; then
+            $formatter -i "$file_path"
+            echo "format-cpp hook: formatted ${file_path##*/}"
+        fi
+        ;;
+esac
+
+exit 0
+```
+
+- `case ... in *.cpp|*.hpp)` — pattern match on the file extension. Only
+  C++ sources and headers proceed; a `.md` or `.json` file falls through
+  and the script just exits.
+- `[ -f "$file_path" ]` — "does the file exist?" (it might have been
+  deleted in the meantime).
+- `$formatter -i "$file_path"` — the actual work: `-i` means "in place",
+  i.e. rewrite the file with formatted content.
+- `echo ...` — whatever a hook prints is shown in the Claude Code
+  transcript, so you can see the hook did its job.
+  (`${file_path##*/}` strips the directory part, leaving just the filename.)
+
+## Create your own hook, step by step
+
+1. **Write a script** in `.claude/hooks/`, e.g. `my-hook.sh`. Start from
+   the skeleton above: read stdin, extract what you need, act, `exit 0`.
+2. **Make it executable** — this is the step everyone forgets:
+   ```bash
+   chmod +x .claude/hooks/my-hook.sh
+   ```
+3. **Register it** in `.claude/settings.json` under the right event +
+   matcher (see Part 1).
+4. **Test it manually first** — don't debug inside Claude. Fake the stdin
+   JSON yourself:
+   ```bash
+   echo '{"tool_input":{"file_path":"src/board.cpp"}}' | .claude/hooks/my-hook.sh
+   ```
+5. **Start a new Claude Code session** and trigger the event for real.
+6. **Commit both files.**
+
+## Try the demo
+
+Ask Claude to add a method to `src/board.cpp` and not worry about
+formatting. After the edit, run `git diff` — the code is already formatted,
+and the line `format-cpp hook: formatted board.cpp` appears in the
+transcript.
+
+## Troubleshooting
+
+- **Hook never runs** → new session needed after editing `settings.json`;
+  also check the script is executable (`ls -l .claude/hooks/`).
+- **"Permission denied"** → you skipped `chmod +x`.
+- **Hook errors break the flow** → make sure every "nothing to do" path
+  ends in `exit 0`, not an error.
