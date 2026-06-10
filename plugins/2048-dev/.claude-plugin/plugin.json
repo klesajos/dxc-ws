@@ -1,0 +1,9 @@
+{
+  "name": "2048-dev",
+  "description": "Dev workflow commands for the 2048 workshop project",
+  "version": "1.0.0",
+  "author": {
+    "name": "Josef Klesa",
+    "url": "https://github.com/klesajos"
+  }
+}

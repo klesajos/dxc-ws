@@ -1,4 +1,15 @@
 {
+  "extraKnownMarketplaces": {
+    "dxc-ws": {
+      "source": {
+        "source": "github",
+        "repo": "klesajos/dxc-ws"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "2048-dev@dxc-ws": true
+  },
   "hooks": {
     "PostToolUse": [
       {
