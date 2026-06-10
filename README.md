@@ -44,3 +44,9 @@ CMakeLists.txt
 
 Veškerá pravidla hry jsou v `Board` a nezávisí na I/O — proto se dají snadno
 testovat. Začni u `slideLineLeft()` v `src/board.cpp`, to je srdce hry.
+
+## Claude Code examples
+
+The repo also showcases the four project-scoped ways to extend Claude Code —
+skills, hooks, MCP servers, and plugins. Each is a separate, minimal example
+tied to this codebase. See [docs/claude-code/](docs/claude-code/README.md).
