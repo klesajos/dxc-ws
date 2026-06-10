@@ -162,6 +162,43 @@ Požádej Clauda, ať přidá metodu do `src/board.cpp` a formátováním se
 nezabývá. Po úpravě spusť `git diff` — kód už je zformátovaný a v přepisu
 se objeví řádek `format-cpp hook: formatted board.cpp`.
 
+## Volitelné parametry
+
+Hook handler umí víc než `type` a `command`. Nejužitečnější volitelná pole:
+
+| Pole | Co dělá |
+|------|---------|
+| `timeout` | Sekundy do zrušení hooku (výchozí 600). U rychlých hooků nastav nízko, aby zaseknutý skript nezdržoval session |
+| `statusMessage` | Vlastní text u spinneru během běhu, např. `"Formátuji C++..."` |
+| `if` | Dodatečný filtr syntaxí permission pravidel, např. `"if": "Edit(*.cpp)"` — přesnější než `matcher`, který vidí jen název nástroje |
+| `once: true` | Spustit jen jednou za session, pak odregistrovat (hodí se pro kontroly prostředí) |
+
+A události: tahle ukázka používá `PostToolUse`, ale hooks se dají navěsit
+na celý životní cyklus session. Které stojí za to znát nejdřív:
+
+| Událost | Spustí se |
+|---------|-----------|
+| `PreToolUse` | Před spuštěním nástroje — **umí ho zablokovat** (např. zakázat `git push --force`) |
+| `PostToolUse` | Po úspěšném nástroji (náš případ) |
+| `SessionStart` | Při startu session — kontroly prostředí, načtení kontextu |
+| `UserPromptSubmit` | Při odeslání promptu — umí přidat kontext navíc |
+| `Stop` | Když Claude končí odpověď — např. ověřit, že testy opravdu běžely |
+
+Úplný seznam událostí a polí: [oficiální dokumentace hooks](https://code.claude.com/docs/en/hooks).
+
+## Kde to funguje: CLI, Desktop aplikace, Cowork
+
+| Platforma | Funguje? | Nastavení |
+|-----------|----------|-----------|
+| **Claude Code CLI** (terminál) | ✅ Ano | Nic navíc — hooks z `.claude/settings.json` se načtou při startu session |
+| **Claude Desktop — záložka Code** | ✅ Ano | Stejný engine, stejné konfigurační soubory jako CLI. Potvrď jednorázový dialog důvěry projektu; hooks pak běží stejně |
+| **Cowork** (v Desktop aplikaci) | ❌ Ne | Sandboxované VM Coworku projektové hooks z `.claude/settings.json` nespouští. Přímá náhrada není — nejblíž jsou hooks zabalené v nainstalovaném pluginu |
+
+Poznámka pro workshop: tohle je nejvýraznější platformní rozdíl ze všech
+čtyř ukázek. Hooks jsou *lokální automatizace* — pokud na nich tvůj workflow
+stojí (formátování, lint brány), pracuj v CLI nebo v záložce Code v Desktopu,
+ne v Coworku.
+
 ## Když něco nefunguje
 
 - **Hook se nikdy nespustí** → po úpravě `settings.json` je potřeba nová

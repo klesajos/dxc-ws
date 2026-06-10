@@ -115,6 +115,46 @@ návodu děláš.
    generátorech."* Claude zavolá externí dokumentační nástroj a odpověď
    rovnou použije v projektu.
 
+## Volitelné parametry
+
+Naše dvě položky jsou minimální. Užitečná volitelná pole podle typu
+transportu:
+
+**Pro `stdio` servery (lokální programy):**
+
+| Pole | Co dělá |
+|------|---------|
+| `env` | Proměnné prostředí předané procesu serveru, např. `{"DEBUG": "true"}` |
+| `cwd` | Pracovní adresář, ve kterém server startuje (výchozí je ten, kde běží Claude) |
+
+**Pro `http` servery (vzdálené služby):**
+
+| Pole | Co dělá |
+|------|---------|
+| `headers` | Vlastní HTTP hlavičky — typicky `Authorization` pro API klíče |
+| `timeout` | Timeout volání nástrojů pro daný server, v milisekundách |
+| `oauth` | OAuth konfigurace pro servery s přihlášením přes prohlížeč |
+
+**Expanze proměnných prostředí** funguje v `command`, `args`, `env`,
+`url` a `headers`:
+
+- `${VAR}` — nahradí se hodnotou `VAR` z tvého shellu
+- `${VAR:-default}` — použije `default`, když `VAR` není nastavená
+
+Úplná reference: [oficiální dokumentace MCP](https://code.claude.com/docs/en/mcp).
+
+## Kde to funguje: CLI, Desktop aplikace, Cowork
+
+| Platforma | Funguje? | Nastavení |
+|-----------|----------|-----------|
+| **Claude Code CLI** (terminál) | ✅ Ano | Nic navíc — `.mcp.json` se čte z kořene repa; servery schválíš při první session |
+| **Claude Desktop — záložka Code** | ✅ Ano | Stejný engine a konfigurace jako CLI. Potvrď dialog důvěry projektu a oba servery se objeví v `/mcp` |
+| **Cowork** (v Desktop aplikaci) | ❌ Ne (jiný mechanismus) | Cowork projektový `.mcp.json` nenačítá. Místo toho používá **Konektory** nastavené v tvém Claude účtu ([claude.ai → Settings → Connectors](https://claude.ai/settings/connectors)). Přidej server tam a bude dostupný v Cowork úlohách — je ale vázaný na účet, ne na projekt, a platí pro všechny tvoje Cowork sessions |
+
+Praktické pravidlo: `.mcp.json` = *tohle repo, každý kdo si ho naklonuje*;
+Konektory = *tvůj účet, každá Cowork/claude.ai konverzace*. Vespod stejný
+protokol (MCP), jiná distribuce.
+
 ## Když něco nefunguje
 
 - **Server chybí v `/mcp`** → nevalidní JSON (spusť `jq . .mcp.json`),

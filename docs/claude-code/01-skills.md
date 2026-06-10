@@ -106,6 +106,35 @@ exactly this case. Thanks to the skill, Claude will use the deterministic
 `Board(Grid)` constructor, follow the Arrange-Act-Assert style, and run
 `ctest` to verify — the same way for every attendee.
 
+## Optional frontmatter parameters
+
+Our skill uses only `name` and `description`, but the frontmatter supports
+more. The most useful optional fields:
+
+| Field | What it does |
+|-------|--------------|
+| `argument-hint` | Autocomplete hint shown after the slash command, e.g. `[test-name]` |
+| `disable-model-invocation: true` | Claude never loads the skill on its own — only you can, via `/name`. Good for destructive workflows (deploy, release) |
+| `user-invocable: false` | The opposite: hidden from the `/` menu, only Claude can load it |
+| `allowed-tools` | Tools the skill may use without asking permission, e.g. `Bash(ctest:*)` |
+| `model` | Use a specific model while the skill is active |
+| `context: fork` | Run the skill in an isolated subagent so it doesn't fill your main conversation's context |
+| `paths` | Glob patterns — only auto-invoke when matching files are involved, e.g. `tests/**` |
+
+Full, current list: [official skills documentation](https://code.claude.com/docs/en/skills).
+
+## Where it works: CLI, Desktop app, Cowork
+
+| Platform | Works? | Setup |
+|----------|--------|-------|
+| **Claude Code CLI** (terminal) | ✅ Yes | Nothing extra — skills in `.claude/skills/` are discovered automatically when you run `claude` in the repo |
+| **Claude Desktop app — Code tab** | ✅ Yes | Open the project folder in the Code tab. Desktop runs the same engine as the CLI and shares all project config. You'll confirm a one-time trust dialog for the project |
+| **Cowork** (in the Desktop app) | ❌ No | Cowork runs tasks in its own sandboxed VM and does **not** load project-scoped `.claude/` config. Equivalent: package the skill into a plugin and install it in Cowork, or add it as a skill via claude.ai |
+
+Reference: [Desktop quickstart](https://code.claude.com/docs/en/desktop-quickstart) — "Desktop runs
+the same engine as the CLI ... they share configuration (CLAUDE.md files,
+MCP servers, hooks, skills, and settings)."
+
 ## Troubleshooting
 
 - **`/board-tests` not found** → the file must be exactly

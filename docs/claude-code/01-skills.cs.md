@@ -105,6 +105,35 @@ případ. Díky skillu Claude použije deterministický konstruktor
 `Board(Grid)`, dodrží styl Arrange-Act-Assert a ověří výsledek přes
 `ctest` — u každého účastníka stejně.
 
+## Volitelné parametry frontmatteru
+
+Náš skill používá jen `name` a `description`, ale frontmatter umí víc.
+Nejužitečnější volitelná pole:
+
+| Pole | Co dělá |
+|------|---------|
+| `argument-hint` | Nápověda v našeptávači za slash příkazem, např. `[nazev-testu]` |
+| `disable-model-invocation: true` | Claude skill nikdy nenačte sám — jen ty přes `/nazev`. Vhodné pro destruktivní workflow (deploy, release) |
+| `user-invocable: false` | Opak: skrytý v `/` menu, načíst ho může jen Claude |
+| `allowed-tools` | Nástroje, které skill smí použít bez ptaní, např. `Bash(ctest:*)` |
+| `model` | Po dobu aktivního skillu použít konkrétní model |
+| `context: fork` | Spustit skill v izolovaném subagentovi, aby nezaplnil kontext hlavní konverzace |
+| `paths` | Glob vzory — automaticky se spustí jen u odpovídajících souborů, např. `tests/**` |
+
+Úplný aktuální seznam: [oficiální dokumentace skills](https://code.claude.com/docs/en/skills).
+
+## Kde to funguje: CLI, Desktop aplikace, Cowork
+
+| Platforma | Funguje? | Nastavení |
+|-----------|----------|-----------|
+| **Claude Code CLI** (terminál) | ✅ Ano | Nic navíc — skills v `.claude/skills/` se najdou automaticky, když spustíš `claude` v repu |
+| **Claude Desktop — záložka Code** | ✅ Ano | Otevři složku projektu v záložce Code. Desktop běží na stejném enginu jako CLI a sdílí veškerou projektovou konfiguraci. Poprvé potvrdíš dialog důvěry projektu |
+| **Cowork** (v Desktop aplikaci) | ❌ Ne | Cowork pouští úlohy ve vlastním sandboxovaném VM a projektovou konfiguraci `.claude/` **nenačítá**. Náhrada: zabal skill do pluginu a nainstaluj ho v Coworku, nebo ho přidej jako skill přes claude.ai |
+
+Zdroj: [Desktop quickstart](https://code.claude.com/docs/en/desktop-quickstart) — „Desktop
+běží na stejném enginu jako CLI ... sdílejí konfiguraci (soubory CLAUDE.md,
+MCP servery, hooks, skills a nastavení)."
+
 ## Když něco nefunguje
 
 - **`/board-tests` neexistuje** → soubor musí být přesně

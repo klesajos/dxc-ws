@@ -116,6 +116,45 @@ doing now by reading this guide.
    Claude calls the external documentation tool and feeds the answer
    straight into project work.
 
+## Optional parameters
+
+Our two entries are minimal. Useful optional fields per transport type:
+
+**For `stdio` servers (local programs):**
+
+| Field | What it does |
+|-------|--------------|
+| `env` | Environment variables passed to the server process, e.g. `{"DEBUG": "true"}` |
+| `cwd` | Working directory the server starts in (defaults to where Claude runs) |
+
+**For `http` servers (remote services):**
+
+| Field | What it does |
+|-------|--------------|
+| `headers` | Custom HTTP headers — typically `Authorization` for API keys |
+| `timeout` | Per-server timeout for tool calls, in milliseconds |
+| `oauth` | OAuth configuration for servers that use a browser login flow |
+
+**Environment variable expansion** works in `command`, `args`, `env`,
+`url`, and `headers`:
+
+- `${VAR}` — replaced with the value of `VAR` from your shell
+- `${VAR:-default}` — uses `default` when `VAR` isn't set
+
+Full reference: [official MCP documentation](https://code.claude.com/docs/en/mcp).
+
+## Where it works: CLI, Desktop app, Cowork
+
+| Platform | Works? | Setup |
+|----------|--------|-------|
+| **Claude Code CLI** (terminal) | ✅ Yes | Nothing extra — `.mcp.json` is read from the repo root; approve the servers on first session |
+| **Claude Desktop app — Code tab** | ✅ Yes | Same engine and config as the CLI. Approve the project trust dialog, then both servers appear in `/mcp` |
+| **Cowork** (in the Desktop app) | ❌ No (different mechanism) | Cowork does not load project `.mcp.json`. Instead it uses **Connectors** configured in your Claude account ([claude.ai → Settings → Connectors](https://claude.ai/settings/connectors)). Add the server there and it's available to Cowork tasks — but it's account-scoped, not project-scoped, and applies to all your Cowork sessions |
+
+Practical rule: `.mcp.json` = *this repo, everyone who clones it*;
+Connectors = *your account, every Cowork/claude.ai conversation*. Same
+protocol underneath (MCP), different distribution.
+
 ## Troubleshooting
 
 - **Server missing in `/mcp`** → invalid JSON (run `jq . .mcp.json`) or

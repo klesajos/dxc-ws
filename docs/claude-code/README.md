@@ -45,6 +45,24 @@ Open Claude Code in the repo (`cd dxc-ws && claude`) and try:
 4. **Plugin** — type `/2048-dev:build-test` to configure, build, and test
    the whole project with one command.
 
+## Platform support at a glance
+
+Claude Code runs in several places, and **not everything works everywhere**.
+Each guide has a detailed "Where it works" section; the summary:
+
+| Project-scoped mechanism | CLI (terminal) | Desktop app — Code tab | Cowork |
+|--------------------------|:--------------:|:----------------------:|:------:|
+| Skills (`.claude/skills/`) | ✅ | ✅ | ❌ — package as a plugin instead |
+| Hooks (`.claude/settings.json`) | ✅ | ✅ | ❌ — no local hooks in the sandbox |
+| MCP (`.mcp.json`) | ✅ | ✅ | ❌ — use claude.ai **Connectors** instead |
+| Plugin (in-repo marketplace) | ✅ | ✅ | ⚠️ — content works, but install via Cowork's plugin management, not project settings |
+
+Why: the CLI and the Desktop **Code tab** run the same engine and share all
+project configuration — the Desktop just adds a one-time project trust
+dialog. **Cowork** runs tasks in its own sandboxed VM and does not load
+project-scoped `.claude/` config; it has its own equivalents (Connectors
+for MCP, its own plugin install flow).
+
 ## Which mechanism should I use when?
 
 A common beginner question. Rule of thumb:

@@ -164,6 +164,44 @@ formatting. After the edit, run `git diff` — the code is already formatted,
 and the line `format-cpp hook: formatted board.cpp` appears in the
 transcript.
 
+## Optional parameters
+
+A hook handler accepts more than `type` and `command`. The most useful
+optional fields:
+
+| Field | What it does |
+|-------|--------------|
+| `timeout` | Seconds before the hook is cancelled (default 600). Set low for fast hooks so a stuck script can't stall the session |
+| `statusMessage` | Custom spinner text while the hook runs, e.g. `"Formatting C++..."` |
+| `if` | Extra filter using permission-rule syntax, e.g. `"if": "Edit(*.cpp)"` — more precise than `matcher`, which only sees the tool name |
+| `once: true` | Run only once per session, then deregister (useful for setup checks) |
+
+And the events: this example uses `PostToolUse`, but hooks can attach to
+the whole session lifecycle. The ones worth knowing first:
+
+| Event | Fires |
+|-------|-------|
+| `PreToolUse` | Before a tool runs — **can block it** (e.g. forbid `git push --force`) |
+| `PostToolUse` | After a tool succeeds (our case) |
+| `SessionStart` | When a session begins — environment checks, loading context |
+| `UserPromptSubmit` | When you submit a prompt — can inject extra context |
+| `Stop` | When Claude finishes its turn — e.g. verify tests were actually run |
+
+Full list of events and fields: [official hooks documentation](https://code.claude.com/docs/en/hooks).
+
+## Where it works: CLI, Desktop app, Cowork
+
+| Platform | Works? | Setup |
+|----------|--------|-------|
+| **Claude Code CLI** (terminal) | ✅ Yes | Nothing extra — hooks in `.claude/settings.json` load at session start |
+| **Claude Desktop app — Code tab** | ✅ Yes | Same engine, same config files as the CLI. Confirm the one-time project trust dialog; hooks then run identically |
+| **Cowork** (in the Desktop app) | ❌ No | Cowork's sandboxed VM does not execute project-scoped hooks from `.claude/settings.json`. There is no direct equivalent — hooks shipped inside an installed plugin are the closest option |
+
+Note for the workshop: this is the clearest platform difference of the four
+examples. Hooks are a *local automation* feature — if your workflow depends
+on them (formatting, lint gates), run it in the CLI or the Desktop Code tab,
+not in Cowork.
+
 ## Troubleshooting
 
 - **Hook never runs** → new session needed after editing `settings.json`;

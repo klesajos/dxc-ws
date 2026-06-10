@@ -46,6 +46,24 @@ Otevři Claude Code v repu (`cd dxc-ws && claude`) a vyzkoušej:
 4. **Plugin** — napiš `/2048-dev:build-test` a jedním příkazem se projekt
    nakonfiguruje, sestaví a otestuje.
 
+## Podpora platforem v kostce
+
+Claude Code běží na několika místech a **ne všechno funguje všude**.
+Každý návod má podrobnou sekci „Kde to funguje"; shrnutí:
+
+| Projektový mechanismus | CLI (terminál) | Desktop — záložka Code | Cowork |
+|------------------------|:--------------:|:----------------------:|:------:|
+| Skills (`.claude/skills/`) | ✅ | ✅ | ❌ — zabal raději do pluginu |
+| Hooks (`.claude/settings.json`) | ✅ | ✅ | ❌ — sandbox lokální hooks nespouští |
+| MCP (`.mcp.json`) | ✅ | ✅ | ❌ — použij **Konektory** na claude.ai |
+| Plugin (in-repo marketplace) | ✅ | ✅ | ⚠️ — obsah funguje, ale instaluje se přes správu pluginů v Coworku, ne přes projektové nastavení |
+
+Proč: CLI a záložka **Code** v Desktopu běží na stejném enginu a sdílejí
+veškerou projektovou konfiguraci — Desktop jen přidává jednorázový dialog
+důvěry projektu. **Cowork** pouští úlohy ve vlastním sandboxovaném VM
+a projektovou konfiguraci `.claude/` nenačítá; má vlastní ekvivalenty
+(Konektory pro MCP, vlastní instalaci pluginů).
+
 ## Kdy použít který mechanismus?
 
 Častá otázka začátečníků. Základní pravidlo:

@@ -157,6 +157,43 @@ Dohromady: naklonuj repo → otevři Claude Code → potvrď jeden dialog →
   instaluje se jedním příkazem. Na plugin přejdi, když se skill nebo hook
   osvědčí i mimo jeden projekt.
 
+## Volitelné parametry
+
+**V `plugin.json`** (povinné je jen `name`):
+
+| Pole | Co dělá |
+|------|---------|
+| `displayName` | Lidsky čitelný název v UI pluginů (smí obsahovat mezery) |
+| `version` | Sémantická verze, např. `1.2.0`; bez ní se použije git commit |
+| `homepage`, `repository`, `license`, `keywords` | Metadata zobrazená ve výpisu marketplace |
+| `defaultEnabled: false` | Plugin se šíří jako opt-in: uživatelé ho vidí, ale musí si ho zapnout sami |
+| `commands`, `skills`, `agents`, `hooks`, `mcpServers` | Přepíšou výchozí cesty k obsahu — např. nasměruj `hooks` na vlastní `hooks/hooks.json`. Plugin může balit **všechno tohle**, nejen příkazy |
+
+**V položce pluginu v `marketplace.json`:**
+
+| Pole | Co dělá |
+|------|---------|
+| `description` | Zobrazí se ve výpisu marketplace (přebije ho plugin.json, když je v obou) |
+| `version` | Verze na úrovni katalogu (plugin.json má přednost, když jsou obě) |
+| `category`, `tags` | Filtrování a hledání ve větších marketplace |
+
+Úplná reference: [reference pluginů](https://code.claude.com/docs/en/plugins-reference)
+a [dokumentace marketplace](https://code.claude.com/docs/en/plugin-marketplaces).
+
+## Kde to funguje: CLI, Desktop aplikace, Cowork
+
+| Platforma | Funguje? | Nastavení |
+|-----------|----------|-----------|
+| **Claude Code CLI** (terminál) | ✅ Ano | Nic navíc — `extraKnownMarketplaces` + `enabledPlugins` v projektovém nastavení plugin zaregistrují a zapnou po jednom potvrzení důvěry |
+| **Claude Desktop — záložka Code** | ✅ Ano | Stejně jako CLI: otevři projekt, potvrď dialog důvěry, `/2048-dev:build-test` se objeví |
+| **Cowork** (v Desktop aplikaci) | ⚠️ Částečně | Cowork **nečte** in-repo marketplace ani projektové nastavení. Má ale vlastní systém pluginů: nainstaluj plugin přes správu pluginů v Coworku (nebo nahraj zabalený `.plugin` soubor) a jeho příkazy/skills pak v Cowork úlohách fungují. **Hooks** v pluginu závislé na lokálních nástrojích se v sandboxu můžou chovat jinak |
+
+Ze čtyř mechanismů jsou tedy pluginy do Coworku nejpřenositelnější —
+*obsah* tam funguje, nefunguje jen in-repo *distribuční kanál*
+(`extraKnownMarketplaces` v projektovém nastavení). Pro tým na Coworku
+publikuj plugin do sdíleného marketplace a instaluj ho přes správu
+pluginů v Coworku.
+
 ## Vyzkoušej demo
 
 1. Otevři Claude Code v čerstvém klonu → potvrď dialog důvěry marketplace.
