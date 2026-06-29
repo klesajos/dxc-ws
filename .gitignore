@@ -2,6 +2,7 @@ build/
 cmake-build-*/
 .DS_Store
 .cache/
+.claude/worktrees/
 compile_commands.json
 *.o
 *.out
