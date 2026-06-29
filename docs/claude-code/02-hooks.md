@@ -27,6 +27,10 @@ Two files are involved:
 .claude/hooks/format-cpp.sh  ← the script that says WHAT to do
 ```
 
+This guide walks through that format hook in full, then adds a **second hook**
+on a different event — a `Stop` hook that runs the tests when Claude finishes a
+turn — and explains the three hook **types**.
+
 ## Part 1: the registration (`.claude/settings.json`), line by line
 
 ```json
@@ -163,6 +167,78 @@ Ask Claude to add a method to `src/board.cpp` and not worry about
 formatting. After the edit, run `git diff` — the code is already formatted,
 and the line `format-cpp hook: formatted board.cpp` appears in the
 transcript.
+
+## A second hook: gate on tests (the `Stop` event)
+
+The format hook reacts to a **tool** (`Edit`/`Write`). Hooks can also react to
+the **session lifecycle**. This repo ships a second hook on the `Stop` event —
+which fires once, when Claude finishes its turn — to run the test suite and
+report whether the tree is still green.
+
+Its registration sits next to the first hook in `.claude/settings.json`. Note
+there is **no `matcher`**: `Stop` isn't about a tool, so there's nothing to
+filter on.
+
+```json
+"Stop": [
+  {
+    "hooks": [
+      { "type": "command",
+        "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/run-tests.sh" }
+    ]
+  }
+]
+```
+
+The script (`.claude/hooks/run-tests.sh`) is deliberately **advisory**: it runs
+`ctest`, prints one line, and always `exit 0` — so it never interrupts you.
+
+```bash
+cat >/dev/null                         # drain the Stop-event JSON we don't need
+build_dir="${CLAUDE_PROJECT_DIR:-$(pwd)}/build"
+[ -d "$build_dir" ] && command -v ctest >/dev/null 2>&1 || exit 0   # quiet until built
+summary=$(ctest --test-dir "$build_dir" 2>/dev/null | grep -E 'tests passed' | tail -1 || true)
+[ -z "$summary" ] && exit 0
+case "$summary" in
+    *"0 tests failed"*) echo "run-tests hook: ✓ $summary" ;;
+    *) echo "run-tests hook: ✗ $summary (run 'ctest --test-dir build' for details)" ;;
+esac
+```
+
+- It stays **silent until you've configured the build** (`build/` exists), so
+  it never nags on a fresh clone.
+- It reports `✓` when everything passes and `✗` otherwise — a passive safety
+  net that tells you the moment a change breaks a test.
+
+**Want it to *block* instead of inform?** A `Stop` hook that exits non-zero (or
+prints `{"decision": "block", "reason": "..."}` on stdout) tells Claude it is
+**not** done — that's how you enforce "tests must pass before you stop". We keep
+ours advisory so a live workshop session never gets stuck in a fix-tests loop;
+flip it to blocking when you want a hard gate.
+
+## Hook types: command, prompt, agent
+
+Both hooks above use `"type": "command"` — a shell script. That's the most
+common type, but not the only one. A handler can be one of three types, trading
+determinism for judgement:
+
+| Type | What runs | Use it for |
+|------|-----------|------------|
+| `command` | A shell script (our two hooks) | Deterministic, fast checks — format, lint, run tests, block a forbidden command |
+| `prompt` | A single-turn call to a small Claude model | A quick judgement call — "is this commit message descriptive?" — returning a yes/no decision |
+| `agent` | A multi-turn subagent with tool access (`Read`, `Grep`, …) | Deep verification — "read the diff and confirm no secrets were added" — before proceeding |
+
+A `prompt` hook is registered with the text to evaluate instead of a command:
+
+```json
+{ "type": "prompt",
+  "prompt": "Does the staged diff add a test for every new public method? Answer yes or no." }
+```
+
+Rule of thumb: reach for `command` first (free and instant), `prompt` when the
+check needs language understanding, and `agent` only when the check itself has
+to explore the codebase. This repo ships `command` hooks; the other two are
+worth knowing exist.
 
 ## Optional parameters
 
