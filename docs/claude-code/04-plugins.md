@@ -14,7 +14,8 @@ repo. That works great for *one* project. A plugin is the next step: the
 same content packaged so it can be shared across many repos and teams.
 
 This example shows the smallest possible setup: the repo is **its own
-marketplace** offering **one plugin** with **one command**.
+marketplace** offering **one plugin** that bundles **one skill** (and, from
+Example 5, an agent).
 
 ## The moving parts
 
@@ -22,23 +23,33 @@ marketplace** offering **one plugin** with **one command**.
 .claude-plugin/marketplace.json      ← the marketplace catalog (repo root)
 plugins/2048-dev/                    ← the plugin itself
   .claude-plugin/plugin.json         ← plugin manifest (name, version, ...)
-  commands/build-test.md             ← one slash command
+  skills/build-test/SKILL.md         ← one bundled skill (was a command)
 .claude/settings.json                ← auto-registers + enables the plugin
 ```
 
-Three layers, from inside out: a **command** lives in a **plugin**, which is
+Three layers, from inside out: a **skill** lives in a **plugin**, which is
 listed in a **marketplace**, which the project's **settings** point to.
 
-## Layer 1: the command (`plugins/2048-dev/commands/build-test.md`)
+## Layer 1: the skill (`plugins/2048-dev/skills/build-test/SKILL.md`)
 
-A slash command is a Markdown file. The file name = the command name
-(`build-test.md` → `/2048-dev:build-test`; the prefix is the plugin name).
+This plugin bundles a **skill**. The skill folder's name = the command name
+(`skills/build-test/` → `/2048-dev:build-test`; the prefix is the plugin name).
+
+> **Why a skill, not a command?** Custom slash commands have been **merged into
+> skills** — `commands/build-test.md` and `skills/build-test/SKILL.md` both create
+> `/2048-dev:build-test`. The legacy `commands/` form still works, but skills are
+> the forward path (see the [cheat-sheet](cheatsheet.md)). This plugin ships the
+> skill.
 
 ```markdown
 ---
+name: build-test
 description: Configure, build, and run the full test suite, then summarize results
 allowed-tools: Bash(cmake:*), Bash(ctest:*)
+disable-model-invocation: true
 ---
+
+# Build and test
 
 Build the project and run the tests:
 
@@ -46,20 +57,25 @@ Build the project and run the tests:
 ...
 ```
 
+- `name` — the skill's identifier; with the plugin prefix, `/2048-dev:build-test`.
 - `description` — shown in the command autocomplete list.
-- `allowed-tools` — pre-approves the tools the command needs:
-  `Bash(cmake:*)` means "any `cmake` command" may run without asking for
-  permission. Scope this narrowly — *which* tools, not "all tools".
-- The body is the **prompt** Claude executes when you type the command.
-  Write it like a precise work order: numbered steps and what to report.
+- `allowed-tools` — pre-approves the tools the skill needs: `Bash(cmake:*)` means
+  "any `cmake` command" may run without asking. Scope this narrowly — *which*
+  tools, not "all tools".
+- `disable-model-invocation: true` — **the one flag that makes a skill behave like
+  the old command**: Claude won't auto-run it; only you can, via
+  `/2048-dev:build-test`. Drop it and Claude may also invoke the skill on its own
+  when your request matches the `description`.
+- The body is the **prompt** Claude executes when you run it. Write it like a
+  precise work order: numbered steps and what to report.
 
 ## Layer 2: the plugin manifest (`plugins/2048-dev/.claude-plugin/plugin.json`)
 
 ```json
 {
   "name": "2048-dev",
-  "description": "Dev workflow commands for the 2048 workshop project",
-  "version": "1.0.0",
+  "description": "Dev workflow skill (build-test) and the game-explorer agent for the 2048 workshop project",
+  "version": "1.2.0",
   "author": { "name": "Josef Klesa", "url": "https://github.com/klesajos" }
 }
 ```
@@ -126,12 +142,12 @@ Together: clone the repo → open Claude Code → accept one prompt →
 
 1. **Create the plugin skeleton:**
    ```bash
-   mkdir -p plugins/my-plugin/.claude-plugin plugins/my-plugin/commands
+   mkdir -p plugins/my-plugin/.claude-plugin plugins/my-plugin/skills/hello
    ```
 2. **Write the manifest** `plugins/my-plugin/.claude-plugin/plugin.json` —
    copy the Layer 2 example, change `name` and `description`.
-3. **Add a command** `plugins/my-plugin/commands/hello.md` — frontmatter
-   with a `description`, body with the instructions (see Layer 1).
+3. **Add a skill** `plugins/my-plugin/skills/hello/SKILL.md` — frontmatter with
+   `name` + `description`, body with the instructions (see Layer 1).
 4. **List it in the marketplace** — add an entry to the `plugins` array in
    `.claude-plugin/marketplace.json` with `source: "./plugins/my-plugin"`.
 5. **Validate** — Claude Code ships a checker:
@@ -207,5 +223,5 @@ Cowork's plugin management instead.
   check the plugin is enabled in `/plugin` → "Manage plugins".
 - **"Marketplace not trusted"** → you declined the prompt; re-add manually
   with `/plugin marketplace add ./`.
-- **Changed the command file but nothing happens** → start a new session;
+- **Changed the skill file but nothing happens** → start a new session;
   plugin content is loaded at session start.

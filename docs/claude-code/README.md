@@ -22,7 +22,8 @@ go from simplest to most advanced:
 Every guide exists in two languages: `xx-name.md` is English,
 `xx-name.cs.md` is Czech. They have the same content. When you've worked
 through all six, the [exercise catalog](exercises.md) gives you one game
-feature to build per mechanism.
+feature to build per mechanism — and the [cheat-sheet](cheatsheet.md) is a
+quick reference for the day-to-day flags, slash commands and shortcuts.
 
 ## Before you start
 
