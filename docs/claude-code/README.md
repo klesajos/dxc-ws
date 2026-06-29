@@ -2,7 +2,7 @@
 
 # Claude Code extension examples
 
-This repo doubles as a showcase of the four **project-scoped** ways to extend
+This repo doubles as a showcase of the six **project-scoped** ways to extend
 Claude Code. "Project-scoped" means the configuration lives **inside the
 repository** — when you `git clone` the project, you get the whole setup
 automatically. Nothing needs to be installed into your home directory.
@@ -16,9 +16,13 @@ go from simplest to most advanced:
 | 2 | [Hooks](02-hooks.md) | Running a shell command automatically when Claude does something (here: auto-format code) | `.claude/settings.json` + `.claude/hooks/format-cpp.sh` |
 | 3 | [MCP](03-mcp.md) | Connecting Claude to external tools and data sources | `.mcp.json` |
 | 4 | [Plugins](04-plugins.md) | Packaging commands/skills/hooks so a whole team can share them | `plugins/2048-dev/` + `.claude-plugin/marketplace.json` |
+| 5 | [Subagents](05-agents.md) | Delegating a self-contained task to an isolated context with its own tools and persona | `.claude/agents/` + `plugins/2048-dev/agents/` |
+| 6 | [Workflows](06-workflows.md) | Orchestrating many agents with deterministic, code-defined control flow | `.claude/workflows/` |
 
 Every guide exists in two languages: `xx-name.md` is English,
-`xx-name.cs.md` is Czech. They have the same content.
+`xx-name.cs.md` is Czech. They have the same content. When you've worked
+through all six, the [exercise catalog](exercises.md) gives you one game
+feature to build per mechanism.
 
 ## Before you start
 
@@ -44,6 +48,11 @@ Open Claude Code in the repo (`cd dxc-ws && claude`) and try:
    *"Use deepwiki to look up how Catch2 generators work."*
 4. **Plugin** — type `/2048-dev:build-test` to configure, build, and test
    the whole project with one command.
+5. **Subagent** — make a trivial edit to any `.cpp`, then ask:
+   *"Review my uncommitted changes."* The read-only `cpp-reviewer` agent
+   reports findings with `file:line` and modifies nothing.
+6. **Workflow** — run `/test-coverage-audit` to fan out a read-only coverage
+   audit over `src/` and print a prioritized gap report (re-run it: same shape).
 
 ## Platform support at a glance
 
@@ -56,6 +65,8 @@ Each guide has a detailed "Where it works" section; the summary:
 | Hooks (`.claude/settings.json`) | ✅ | ✅ | ❌ — no local hooks in the sandbox |
 | MCP (`.mcp.json`) | ✅ | ✅ | ❌ — use claude.ai **Connectors** instead |
 | Plugin (in-repo marketplace) | ✅ | ✅ | ⚠️ — content works, but install via Cowork's plugin management, not project settings |
+| Subagents (`.claude/agents/`) | ✅ | ✅ | ❌ — bundle the agent in a plugin instead |
+| Workflows (`.claude/workflows/`) | ✅ | ✅* | ❌* — local orchestration; *verify per build |
 
 Why: the CLI and the Desktop **Code tab** run the same engine and share all
 project configuration — the Desktop just adds a one-time project trust
@@ -75,3 +86,9 @@ A common beginner question. Rule of thumb:
   database, search docs, control a browser).
 - **Plugin** — when you want to *share* any of the above across multiple
   repos or with your whole team, as one versioned package.
+- **Subagent** — when you want to hand *one* self-contained task to an
+  isolated context with its own tools and persona (a reviewer that can't
+  write, a tester, a codebase explorer).
+- **Workflow** — when you want *repeatable, multi-stage* orchestration of
+  *several* agents in code (fan out over files, gate one stage on another,
+  reduce many results into one report).

@@ -2,7 +2,7 @@
 
 # Ukázky rozšíření Claude Code
 
-Tohle repo zároveň slouží jako ukázka čtyř způsobů, jak rozšířit Claude Code
+Tohle repo zároveň slouží jako ukázka šesti způsobů, jak rozšířit Claude Code
 na úrovni **projektu**. „Na úrovni projektu" znamená, že konfigurace žije
 **přímo v repozitáři** — když si projekt naklonuješ přes `git clone`,
 dostaneš celé nastavení automaticky. Nic se neinstaluje do domovského
@@ -17,9 +17,13 @@ nejjednodušší po nejpokročilejší:
 | 2 | [Hooks](02-hooks.cs.md) | Jak automaticky spustit shellový příkaz, když Claude něco udělá (tady: autoformátování kódu) | `.claude/settings.json` + `.claude/hooks/format-cpp.sh` |
 | 3 | [MCP](03-mcp.cs.md) | Jak Clauda připojit k externím nástrojům a zdrojům dat | `.mcp.json` |
 | 4 | [Pluginy](04-plugins.cs.md) | Jak zabalit příkazy/skills/hooks, aby je mohl sdílet celý tým | `plugins/2048-dev/` + `.claude-plugin/marketplace.json` |
+| 5 | [Subagenti](05-agents.cs.md) | Jak delegovat samostatný úkol do izolovaného kontextu s vlastními nástroji a personou | `.claude/agents/` + `plugins/2048-dev/agents/` |
+| 6 | [Workflows](06-workflows.cs.md) | Jak orchestrovat víc agentů s deterministickým, kódem definovaným tokem řízení | `.claude/workflows/` |
 
 Každý návod existuje ve dvou jazycích: `xx-nazev.md` je anglicky,
-`xx-nazev.cs.md` česky. Obsah je stejný.
+`xx-nazev.cs.md` česky. Obsah je stejný. Až projdeš všech šest, [katalog
+cvičení](exercises.cs.md) ti dá jednu herní featuru k postavení na každý
+mechanismus.
 
 ## Než začneš
 
@@ -45,6 +49,12 @@ Otevři Claude Code v repu (`cd dxc-ws && claude`) a vyzkoušej:
    *„Použij deepwiki a zjisti, jak fungují generátory v Catch2."*
 4. **Plugin** — napiš `/2048-dev:build-test` a jedním příkazem se projekt
    nakonfiguruje, sestaví a otestuje.
+5. **Subagent** — udělej drobnou úpravu libovolného `.cpp` a zeptej se:
+   *„Zkontroluj moje necommitnuté změny."* Read-only agent `cpp-reviewer`
+   nahlásí nálezy s `file:line` a nic nezmění.
+6. **Workflow** — spusť `/test-coverage-audit`, rozfanouje read-only audit
+   pokrytí přes `src/` a vypíše prioritizovanou zprávu o mezerách (spusť
+   znovu: stejný tvar).
 
 ## Podpora platforem v kostce
 
@@ -57,6 +67,8 @@ Každý návod má podrobnou sekci „Kde to funguje"; shrnutí:
 | Hooks (`.claude/settings.json`) | ✅ | ✅ | ❌ — sandbox lokální hooks nespouští |
 | MCP (`.mcp.json`) | ✅ | ✅ | ❌ — použij **Konektory** na claude.ai |
 | Plugin (in-repo marketplace) | ✅ | ✅ | ⚠️ — obsah funguje, ale instaluje se přes správu pluginů v Coworku, ne přes projektové nastavení |
+| Subagenti (`.claude/agents/`) | ✅ | ✅ | ❌ — zabal agenta raději do pluginu |
+| Workflows (`.claude/workflows/`) | ✅ | ✅* | ❌* — lokální orchestrace; *ověř podle buildu |
 
 Proč: CLI a záložka **Code** v Desktopu běží na stejném enginu a sdílejí
 veškerou projektovou konfiguraci — Desktop jen přidává jednorázový dialog
@@ -76,3 +88,9 @@ a projektovou konfiguraci `.claude/` nenačítá; má vlastní ekvivalenty
   databáze, hledání v dokumentaci, ovládání prohlížeče).
 - **Plugin** — když chceš cokoli z výše uvedeného *sdílet* mezi více repy
   nebo s celým týmem jako jeden verzovaný balíček.
+- **Subagent** — když chceš předat *jeden* samostatný úkol izolovanému
+  kontextu s vlastními nástroji a personou (recenzent, co nemůže zapisovat,
+  tester, průzkumník kódu).
+- **Workflow** — když chceš *opakovatelnou, vícefázovou* orchestraci *víc*
+  agentů v kódu (rozfanoutovat přes soubory, podmínit jednu fázi druhou,
+  zredukovat víc výsledků do jedné zprávy).
