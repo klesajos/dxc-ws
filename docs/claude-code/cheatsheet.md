@@ -30,6 +30,33 @@ you reach for constantly but that don't each need a full guide.
 | `claude -p "..." --allowedTools "Read,Edit,Bash(git diff *)"` | Allowlist the tools an unattended / CI run may use |
 | `claude -p "..." --output-format json` | Headless output as `json` or `stream-json` for scripts |
 
+## Background sessions (`claude agents`)
+
+A **background session** is a full conversation that keeps running detached (owned by
+a supervisor process) — dispatch work, walk away, check back later.
+
+| Command | What it does |
+|---------|--------------|
+| `claude --bg "..."` | Start a background session from the shell (long form `--background`) |
+| `/bg <prompt>` | Background the current work from inside a session (also `/background`) |
+| `claude agents` | Open the agent view — monitor / dispatch sessions (`--json` to script it) |
+| `claude attach <id>` | Attach to a running background session |
+| `claude logs <id>` | Print a background session's output |
+| `claude stop <id>` | Stop a session (alias `claude kill`) |
+| `claude rm <id>` | Remove a finished session from the list |
+
+**Headless (`-p`) vs. background (`--bg`) — when to use which:**
+
+| | `claude -p "..."` (headless) | `claude --bg "..."` (background) |
+|---|---|---|
+| Runs | Foreground — prints, then exits | Detached — persists under a supervisor |
+| Tied to your shell | Yes (close it → gone) | No (keeps running) |
+| In `claude agents`? | No | Yes (attach / logs / stop) |
+| Reach for it when | Scripting, CI, a one-off you pipe or parse | A long task you dispatch and revisit while you keep working |
+
+Not to be confused with `/agents` (manage **subagents** in the current session) or
+`claude --agent <name>` (run the whole session *as* a named subagent).
+
 ## Slash commands
 
 Type `/` to autocomplete. Grouped by what they're for:

@@ -31,6 +31,33 @@ průvodce.
 | `claude -p "..." --allowedTools "Read,Edit,Bash(git diff *)"` | Allowlist nástrojů, které smí bezobslužný / CI běh použít |
 | `claude -p "..." --output-format json` | Headless výstup jako `json` nebo `stream-json` pro skripty |
 
+## Session na pozadí (`claude agents`)
+
+**Session na pozadí** je plnohodnotná konverzace, která běží odpojená (vlastní ji
+supervizor proces) — zadáš práci, odejdeš a vrátíš se k ní později.
+
+| Příkaz | Co dělá |
+|--------|---------|
+| `claude --bg "..."` | Spustí session na pozadí ze shellu (dlouhý tvar `--background`) |
+| `/bg <prompt>` | Pošle aktuální práci na pozadí zevnitř session (taky `/background`) |
+| `claude agents` | Otevře agent view — monitoruj / spouštěj session (`--json` pro skriptování) |
+| `claude attach <id>` | Připojí se k běžící session na pozadí |
+| `claude logs <id>` | Vypíše výstup session na pozadí |
+| `claude stop <id>` | Zastaví session (alias `claude kill`) |
+| `claude rm <id>` | Odebere dokončenou session ze seznamu |
+
+**Headless (`-p`) vs. pozadí (`--bg`) — kdy co použít:**
+
+| | `claude -p "..."` (headless) | `claude --bg "..."` (pozadí) |
+|---|---|---|
+| Běží | Na popředí — vypíše a skončí | Odpojeně — přetrvává pod supervizorem |
+| Vázané na tvůj shell | Ano (zavřeš ho → konec) | Ne (běží dál) |
+| V `claude agents`? | Ne | Ano (attach / logs / stop) |
+| Sáhni po něm když | Skriptování, CI, jednorázovka k pipe/parsování | Dlouhý úkol, který zadáš a vracíš se k němu při další práci |
+
+Neplést s `/agents` (správa **subagentů** v aktuální session) ani s
+`claude --agent <název>` (spustí celou session *jako* pojmenovaného subagenta).
+
 ## Slash příkazy
 
 Napiš `/` pro automatické doplnění. Seskupené podle účelu:
