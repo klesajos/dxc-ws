@@ -2,8 +2,10 @@
 
 # Claude Code tahák
 
-Číslované průvodce tě učí, jak Claude Code **rozšířit** (skills, hooks, MCP,
-pluginy, subagenti, workflows). Tahle stránka je ta druhá půlka: jak ho
+Číslované průvodce tě učí, jak Claude Code **rozšířit** ([skills](01-skills.cs.md),
+[hooks](02-hooks.cs.md), [MCP](03-mcp.cs.md), [pluginy](04-plugins.cs.md),
+[subagenti](05-agents.cs.md), [workflows](06-workflows.cs.md)). Tahle stránka je
+ta druhá půlka: jak ho
 **ovládat** každý den — přepínače, slash příkazy, klávesové zkratky, prefixy
 a události hooků, po kterých sáhneš pořád, ale nezaslouží si každý vlastní
 průvodce.
@@ -58,7 +60,7 @@ Napiš `/` pro automatické doplnění. Seskupené podle účelu:
 | Příkaz | Co dělá |
 |--------|---------|
 | `/skill-name` | Spustí skill, např. `/board-tests` (Ukázka 1) |
-| `/2048-dev:build-test` | Spustí skill/příkaz zabalený v pluginu (Ukázka 4) |
+| `/2048-dev:build-test` | Spustí skill zabalený v pluginu (Ukázka 4) |
 | `/agents` | Vytvoří / spravuje subagenty |
 | `/hooks` | Zobrazí / spravuje hooky |
 | `/mcp` | Zobrazí MCP servery a autorizuje je |

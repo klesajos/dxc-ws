@@ -2,8 +2,10 @@
 
 # Claude Code cheat-sheet
 
-The numbered guides teach you how to **extend** Claude Code (skills, hooks, MCP,
-plugins, subagents, workflows). This page is the other half: how to **operate**
+The numbered guides teach you how to **extend** Claude Code ([skills](01-skills.md),
+[hooks](02-hooks.md), [MCP](03-mcp.md), [plugins](04-plugins.md),
+[subagents](05-agents.md), [workflows](06-workflows.md)). This page is the other
+half: how to **operate**
 it day to day — the flags, slash commands, shortcuts, prefixes and hook events
 you reach for constantly but that don't each need a full guide.
 
@@ -57,7 +59,7 @@ Type `/` to autocomplete. Grouped by what they're for:
 | Command | What it does |
 |---------|--------------|
 | `/skill-name` | Run a skill, e.g. `/board-tests` (Example 1) |
-| `/2048-dev:build-test` | Run a plugin's bundled skill/command (Example 4) |
+| `/2048-dev:build-test` | Run a plugin's bundled skill (Example 4) |
 | `/agents` | Create / manage subagents |
 | `/hooks` | View / manage hooks |
 | `/mcp` | View MCP servers and authorise them |

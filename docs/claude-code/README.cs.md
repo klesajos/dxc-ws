@@ -23,7 +23,8 @@ nejjednodušší po nejpokročilejší:
 Každý návod existuje ve dvou jazycích: `xx-nazev.md` je anglicky,
 `xx-nazev.cs.md` česky. Obsah je stejný. Až projdeš všech šest, [katalog
 cvičení](exercises.cs.md) ti dá jednu herní featuru k postavení na každý
-mechanismus.
+mechanismus — a [tahák](cheatsheet.cs.md) je rychlá reference na každodenní
+přepínače, slash příkazy a zkratky.
 
 ## Než začneš
 
