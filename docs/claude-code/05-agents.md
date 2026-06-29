@@ -46,26 +46,36 @@ A project subagent is a single Markdown file at `.claude/agents/<name>.md`:
     └── cpp-reviewer.md
 ```
 
-`cpp-reviewer` is the clearest one to read — the tool restriction *is* the lesson:
+`cpp-reviewer` is the clearest one to read — the tool restriction *is* the lesson.
+Here is its frontmatter, **verbatim** from `.claude/agents/cpp-reviewer.md`:
 
 ```yaml
 ---
 name: cpp-reviewer
 description: |
-  Use to review C++ changes in this repo for correctness and house style...
+  Use to review C++ changes in this repo for correctness and house style before
+  you commit. Reads the diff and the surrounding code and reports severity-tagged
+  findings. It has no Edit or Write access — it reviews, it never modifies. Pairs
+  with the clang-format hook: the hook handles mechanical formatting, this agent
+  handles everything formatting cannot catch.
+
   <example>
+  Context: the user just edited src/game.cpp and src/board.cpp and wants a second opinion.
   user: "Review my uncommitted changes."
-  assistant: "I'll run the cpp-reviewer agent — it reads the diff and reports..."
-  <commentary>Read-only semantic review is exactly this agent's role...</commentary>
+  assistant: "I'll run the cpp-reviewer agent — it reads the diff and reports Blocker/Should-fix/Nit findings with file:line, and modifies nothing."
+  <commentary>Read-only semantic review is exactly this agent's role; git status stays unchanged afterwards.</commentary>
+  </example>
+
+  <example>
+  Context: before opening a PR.
+  user: "Anything wrong with this branch before I push?"
+  assistant: "Delegating to cpp-reviewer to check the diff against the project conventions in CLAUDE.md."
+  <commentary>The agent checks naming, const-correctness, ownership and off-by-ones — the things .clang-format can't see.</commentary>
   </example>
 tools: Read, Grep, Glob, Bash(git diff:*), Bash(git status:*), Bash(git log:*)
 model: inherit
 color: blue
 ---
-
-# C++ reviewer (read-only)
-You review C++ changes... You **do not have Edit or Write tools** — that is
-deliberate. Your job is to report, not to fix...
 ```
 
 What each part does:
@@ -88,17 +98,71 @@ What each part does:
 - Everything **below** the frontmatter is the agent's **system prompt** — its
   persona and instructions, followed only inside its own context.
 
-The other two add one idea each:
+### The system prompt: where the read-only guarantee becomes visible
 
-- `board-test-writer.md` carries **`skills: board-tests`** in its frontmatter.
-  That **preloads the Example 1 skill** into the agent, so it inherits the test
-  conventions without copying them. Showcases composing layer on layer. It lists
-  the full `Read, Edit, Write, Grep, Glob, Bash` set — the read tools plus
-  `Edit`/`Write` to add a `TEST_CASE` and `Bash` to run `ctest`.
-- `plugins/2048-dev/agents/game-explorer.md` lives **inside the plugin**, in an
-  `agents/` folder **next to** `commands/` (see Example 4, which already lists
-  `agents/` as a valid plugin folder). Claude Code auto-discovers it and namespaces
-  it as **`2048-dev:game-explorer`**. No settings entry needed.
+The body is where the read-only nature stops being a promise and becomes something
+you can *see*. `cpp-reviewer` ends its system prompt with a fixed `## Output
+format` — quoted here **verbatim**:
+
+```markdown
+## Output format
+
+Group findings by severity, most serious first:
+
+- **Blocker** — wrong behaviour or a build break.
+- **Should-fix** — a real problem that is not strictly breaking.
+- **Nit** — style/clarity, optional.
+
+Each finding: `path/file.cpp:line` — one sentence on what is wrong and one on the
+fix. If you find nothing in a category, say so. End with the line:
+
+> No files modified — review only.
+```
+
+That last line is the demo's proof. When you ask *"Review my uncommitted changes,"*
+you should see this exact footer — `> No files modified — review only.` — and an
+**unchanged `git status`**. The frontmatter *withholds* `Edit`/`Write`; the system
+prompt makes the consequence visible in plain sight.
+
+The other two add one idea each.
+
+**`board-test-writer.md`** carries **`skills: board-tests`** in its frontmatter.
+That **preloads the Example 1 skill** into the agent, so it inherits the test
+conventions without copying them — subagent and skill composing layer on layer.
+Its allowlist is the full **`tools: Read, Edit, Write, Grep, Glob, Bash`** set: the
+read tools, plus `Edit`/`Write` to add a `TEST_CASE` and `Bash` to run `ctest`.
+
+```yaml
+---
+name: board-test-writer
+description: |
+  Use to write or extend Catch2 unit tests for the 2048 board logic in
+  tests/test_board.cpp. ...
+tools: Read, Edit, Write, Grep, Glob, Bash
+model: inherit
+color: green
+skills: board-tests
+---
+```
+
+**`plugins/2048-dev/agents/game-explorer.md`** lives **inside the plugin**, in an
+`agents/` folder **next to** `commands/` (see Example 4, which already lists
+`agents/` as a valid plugin folder). Its **`tools: Read, Grep, Glob`** make it
+read-only with **no `Bash`**, and it has **no `model:` line** at all. The file
+itself says `name: game-explorer`; Claude Code auto-discovers it and namespaces it
+as **`2048-dev:game-explorer`** *because it is plugin-bundled*. No settings entry
+needed.
+
+```yaml
+---
+name: game-explorer
+description: |
+  Use to understand how a feature flows through the 2048 codebase before changing
+  it. ...
+tools: Read, Grep, Glob
+color: cyan
+---
+```
 
 > **A real capability boundary:** a plugin-bundled agent **cannot** define its own
 > `hooks`, `mcpServers`, or `permissionMode` — those belong to the plugin, not to
@@ -126,8 +190,10 @@ The other two add one idea each:
 3. **Decide its powers.** Read-only? List `Read, Grep, Glob` and stop. Needs to
    edit and build? Add `Edit, Write, Bash`. Omit `tools` only if it truly needs
    everything.
-4. **Restart Claude Code** (or start a new session) — agents are discovered at
-   session start.
+4. **Restart the session — this is the step everyone forgets.** Agents are
+   discovered only at session start; adding `.claude/agents/<name>.md` mid-session
+   and then typing `@agent-<name>` fails with "agent not found" until you start a
+   fresh `claude`.
 5. **Invoke it** three ways: ask in plain language matching the `description`,
    mention `@agent-my-agent`, or run `claude --agent my-agent`.
 6. **Commit it** so everyone who clones the repo gets it:

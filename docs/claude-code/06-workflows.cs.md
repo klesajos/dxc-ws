@@ -59,7 +59,12 @@ je zpráva předvídatelná — což z ní dělá dobrý učební artefakt.
 Workflow žije v `.claude/workflows/test-coverage-audit.js`. Uložená workflow
 v `.claude/workflows/` se auto-objeví a stanou se slash příkazy.
 
-**1. Blok `meta` musí být první příkaz** (komentář `//` v hlavičce souboru před ním nevadí). Pojmenuje workflow (tím vznikne
+**1. Blok `meta` musí být úplně první příkaz — na tomhle to každý poprvé
+zasekne.** Jakýkoli `import`, `const` nebo spustitelný řádek nad
+`export const meta` způsobí, že se workflow **tiše neregistruje**:
+`/test-coverage-audit` se vůbec neobjeví, bez chyby, která by vysvětlila proč.
+Komentář `//` v hlavičce souboru před `meta` nevadí (tenhle soubor jedním
+začíná); spustitelný kód ano. Blok pojmenuje workflow (tím vznikne
 `/test-coverage-audit`) a popíše jeho fáze:
 
 ```js
@@ -74,9 +79,27 @@ export const meta = {
 }
 ```
 
-**2. Schémata nutí každého agenta vrátit data, ne prózu.** Předání `schema` do
-`agent()` přiměje runtime výstup agenta zvalidovat, takže skript dostane zpět
-skutečný objekt — žádné parsování:
+**2. Pět zdrojových souborů, které inventarizuje.** Pole `SRC_FILES` jmenuje
+každý soubor v `src/`, u každého jednořádkovou poznámku, ať se čtenářský agent
+rychle zorientuje. Tohle je doslova těch „pět souborů", přes která se rozfanouje
+fáze 1:
+
+```js
+const SRC_FILES = [
+  { file: 'src/board.cpp', note: 'pure rules: slideLineLeft, move, spawnRandom, isGameOver, hasWon' },
+  { file: 'src/game.cpp', note: 'main loop: toDirection, Game::run, spawn + redraw, win/over checks' },
+  { file: 'src/input.cpp', note: 'raw-mode terminal: getchar -> Command (WASD + arrow keys)' },
+  { file: 'src/renderer.cpp', note: 'draws the grid + score to the terminal' },
+  { file: 'src/main.cpp', note: 'entry point: constructs Game, calls run()' },
+]
+```
+
+**3. Tři schémata nutí každého agenta vrátit data, ne prózu.** Předání `schema`
+do `agent()` přiměje runtime výstup agenta zvalidovat, takže skript dostane zpět
+skutečný objekt — žádné parsování. Workflow definuje jedno na každou fázi:
+`BEHAVIOR_SCHEMA` (co jeden soubor dělá, větev po větvi), `COVERAGE_SCHEMA`
+(která id chování pokrývá každý `TEST_CASE`) a `GAP_SCHEMA` (prioritizované
+mezery plus vykreslená tabulka). Tady je ukázané jen `BEHAVIOR_SCHEMA`:
 
 ```js
 const BEHAVIOR_SCHEMA = {
@@ -91,10 +114,12 @@ const BEHAVIOR_SCHEMA = {
 }
 ```
 
-**3. Fáze 1 rozfanouje přes `parallel()` — a každý agent je jen pro čtení.**
-Každý čtenář běží jako vestavěný typ agenta **`Explore`** (`agentType: 'Explore'`),
-který umí číst a hledat, ale **nemůže** `Edit`, `Write` ani sestavovat. Tak je
-celé workflow zaručeně bez vedlejších efektů:
+`GAP_SCHEMA` nese pole `markdown` — a **právě tohle pole nakonec slash příkaz
+vrací** (viz krok 5).
+
+**4. Fáze 1 rozfanouje přes `parallel()`, pak fáze 2 namapuje testy — a každý
+agent je jen pro čtení.** Každý agent běží jako vestavěný typ **`Explore`**
+(`agentType: 'Explore'`); `phase()` jen pojmenuje každou skupinu v UI:
 
 ```js
 phase('Inventory')
@@ -105,6 +130,10 @@ const inventories = await parallel(
   )
 )
 const behaviors = inventories.filter(Boolean).flatMap((r) => r.behaviors)
+
+phase('Map tests')
+const coverageResult = await agent(`Read tests/test_board.cpp ... map each TEST_CASE ...`,
+  { label: 'map:tests', schema: COVERAGE_SCHEMA, agentType: 'Explore' })
 ```
 
 `parallel()` je **bariéra**: počká na *všechny* čtenáře, než pokračuje. Tady je
@@ -112,24 +141,50 @@ to záměr — fáze 2 potřebuje *celý* inventář, než na něj namapuje test
 `pipeline()` žene každou *položku* všemi fázemi nezávisle; hodí se na řetězce po
 položkách jako feature-pipeline níže, ne na fan-in.)
 
-**4. Fáze 2 a 3 běží sekvenčně,** protože každá závisí na agregovaném výsledku
-předchozí fáze — `phase()` jen pojmenuje skupinu v UI:
+> **Proč je každý agent `Explore`?** Agenti `agentType: 'Explore'` umí číst
+> a hledat, ale nemají `Edit`, `Write` ani `Bash`. Právě tohle vynucení — ne
+> prosba — dělá `/test-coverage-audit` bezpečným pro spouštění ve smyčce:
+> `git status` zůstává pokaždé čistý. Sílu zápisu přidej, jen když přidáš
+> i izolaci (`isolation: 'worktree'`).
+
+**5. Redukční prompt je to, co dělá běh deterministickým.** Fáze 3 předá jednomu
+reduktoru celý inventář i mapu pokrytí a — to je klíčové — *zafixuje nálezy,
+které musí vyplavat* přímo v promptu. Tady je ten prompt fáze 3 doslova
+(vypuštěn je jen vkládaný JSON):
 
 ```js
-phase('Map tests')
-const coverageResult = await agent(`Read tests/test_board.cpp ... map each TEST_CASE ...`,
-  { label: 'map:tests', schema: COVERAGE_SCHEMA, agentType: 'Explore' })
-
 phase('Report gaps')
-const report = await agent(`Cross-reference behaviours vs coverage; emit a prioritized gap report ...`,
-  { label: 'reduce:gaps', schema: GAP_SCHEMA, agentType: 'Explore' })
+const report = await agent(
+  `You are auditing unit-test coverage for a 2048 C++ game. Cross-reference the behaviour ` +
+    `inventory against the coverage map and produce a PRIORITIZED gap report. A gap is a ` +
+    `behaviour with pureLogic=true that no TEST_CASE covers; prioritize by risk and how core ` +
+    `the behaviour is (slide/merge logic is the heart of the game).\n\n` +
+    `Known high-value gaps you should expect to surface:\n` +
+    `- slideLineLeft on {4, 4, 8, 0} (the TODO in tests/test_board.cpp).\n` +
+    `- spawnRandom: returns false on a full board, and its 2-vs-4 distribution.\n` +
+    `- a FULL board that still contains a mergeable pair: isGameOver() should return false. ` +
+    `Note that isGameOver() in src/board.cpp only checks for empty cells, so a correct test ` +
+    `for this case currently FAILS — flag it as a latent bug, do not hide it.\n` +
+    `- multi-move sequences (score/state across several moves).\n` +
+    `- the 'changed' flag in src/game.cpp is computed but ignored, so a tile spawns even ` +
+    `after a no-op move (game-loop behaviour, currently untested).\n\n` +
+    `BEHAVIOURS:\n(… the behaviour inventory, injected as JSON …)\n\n` +
+    `COVERAGE:\n(… the coverage map, injected as JSON …)\n\n` +
+    `Return a 'gaps' array and a 'markdown' field. The markdown must contain a table with ` +
+    `columns: behaviour id | file:line | priority | suggested TEST_CASE name | why. This is a ` +
+    `read-only audit: recommend tests to add, do not edit anything.`,
+  { label: 'reduce:gaps', phase: 'Report gaps', schema: GAP_SCHEMA, agentType: 'Explore' }
+)
 
 log(`Audited ${behaviors.length} behaviours; found ${report.gaps.length} coverage gaps.`)
-return report.markdown   // návratová hodnota skriptu je to, co příkaz zobrazí
+return report.markdown   // pole GAP_SCHEMA.markdown je to, co příkaz zobrazí
 ```
 
-Návratová hodnota skriptu je to, co ti `/test-coverage-audit` ukáže — tady
-vykreslený Markdown report.
+Zafixování očekávaných mezer v promptu je **proč** opětovné spuštění
+`/test-coverage-audit` vyplaví pokaždé stejné nálezy: model je neobjevuje znovu
+od nuly, jen potvrzuje známý seznam (a má pokyn označit případ `isGameOver()`
+jako *latentní bug*, ne ho schovat). Skriptové `return report.markdown` je přesně
+to pole `GAP_SCHEMA.markdown` — co slash příkaz vypíše.
 
 ## Pokročilejší tvar: feature-pipeline (popsaná, ne dodaná)
 

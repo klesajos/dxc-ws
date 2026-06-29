@@ -97,7 +97,7 @@ Build the project and run the tests:
     {
       "name": "2048-dev",
       "source": "./plugins/2048-dev",
-      "description": "Dev workflow commands for the 2048 workshop project"
+      "description": "Dev workflow skill (build-test) and the game-explorer agent for the 2048 workshop project"
     }
   ]
 }
@@ -145,7 +145,9 @@ Dohromady: naklonuj repo → otevři Claude Code → potvrď jeden dialog →
 2. **Napiš manifest** `plugins/muj-plugin/.claude-plugin/plugin.json` —
    zkopíruj příklad z Vrstvy 2, změň `name` a `description`.
 3. **Přidej skill** `plugins/muj-plugin/skills/hello/SKILL.md` — frontmatter
-   s `name` + `description`, tělo s instrukcemi (viz Vrstva 1).
+   s `name` + `description`, tělo s instrukcemi (viz Vrstva 1). Přidej
+   `disable-model-invocation: true`, pokud ho chceš jen ruční jako build-test
+   (viz Vrstva 1).
 4. **Uveď ho v marketplace** — přidej položku do pole `plugins`
    v `.claude-plugin/marketplace.json` se `source: "./plugins/muj-plugin"`.
 5. **Zvaliduj** — Claude Code má vestavěnou kontrolu:
@@ -158,7 +160,7 @@ Dohromady: naklonuj repo → otevři Claude Code → potvrď jeden dialog →
    /plugin marketplace add ./
    /plugin install muj-plugin@dxc-ws
    ```
-   Pak napiš `/muj-plugin:hello` a příkaz se spustí.
+   Pak napiš `/muj-plugin:hello` a **skill se spustí**.
 7. **Zapni ho pro všechny** — přidej `"muj-plugin@dxc-ws": true` do
    `enabledPlugins` v `.claude/settings.json`.
 8. **Všechno commitni a pushni.**
@@ -214,7 +216,7 @@ pluginů v Coworku.
 2. Napiš `/2048-dev:` — `build-test` se našeptá.
 3. Spusť ho. Claude nakonfiguruje, sestaví, pustí `ctest` a vrátí přehled
    prošlo/neprošlo, aniž by cokoli opravoval — přesně podle zadání
-   v souboru příkazu.
+   v **souboru skillu**.
 
 ## Když něco nefunguje
 

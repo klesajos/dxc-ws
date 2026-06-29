@@ -5,7 +5,9 @@
 ## What is MCP?
 
 **MCP (Model Context Protocol)** is a standard for connecting AI assistants
-to external tools. An **MCP server** is a small program that offers Claude
+to external tools. Think of it as a universal adapter — like USB-C: one
+standard socket that lets Claude plug into any external tool or data source.
+An **MCP server** is a small program that offers Claude
 extra abilities — querying a database, searching documentation, controlling
 a browser, reading your ticketing system.
 

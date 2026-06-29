@@ -26,6 +26,9 @@ you reach for constantly but that don't each need a full guide.
 | `claude --model opus` | Start on a specific model (`opus`, `sonnet`, `haiku`, `opusplan`) |
 | `claude --agent cpp-reviewer` | Run the whole session as a named subagent |
 | `claude --add-dir ../lib` | Give the session access to extra folders outside the repo |
+| `claude --permission-mode plan` | Start in a permission mode (`plan` / `acceptEdits` / `auto` / `dontAsk` / `bypassPermissions`) |
+| `claude -p "..." --allowedTools "Read,Edit,Bash(git diff *)"` | Allowlist the tools an unattended / CI run may use |
+| `claude -p "..." --output-format json` | Headless output as `json` or `stream-json` for scripts |
 
 ## Slash commands
 
@@ -36,10 +39,12 @@ Type `/` to autocomplete. Grouped by what they're for:
 | Command | What it does |
 |---------|--------------|
 | `/clear` | Wipe the conversation — clean slate for a new task |
-| `/compact` | Summarise the conversation so far to reclaim context (keeps the gist) |
+| `/compact [instructions]` | Summarise the conversation to reclaim context; optional focus, e.g. `/compact keep the auth work` |
 | `/context` | Show what's filling the context window right now |
+| `/btw <question>` | Quick side question — answered *without* adding to the conversation history |
 | `/rewind` | Jump back to an earlier checkpoint (code and/or conversation) — also `Esc Esc` |
 | `/resume` | Switch to another past session without leaving |
+| `/rename <name>` | Rename the current session (easier to find later with `--resume`) |
 | `/export` | Save the whole conversation to a Markdown file |
 
 **Configuration**
@@ -49,6 +54,7 @@ Type `/` to autocomplete. Grouped by what they're for:
 | `/config` | Open the settings menu (model, theme, permissions) |
 | `/model` | Switch model mid-session |
 | `/permissions` | View / grant standing tool permissions |
+| `/sandbox` | Toggle filesystem / network isolation for Bash (or set `"sandbox.enabled": true`) |
 | `/memory` | Edit persistent memory (`CLAUDE.md` files) |
 | `/init` | Generate a starter `CLAUDE.md` for this repo |
 | `/status`, `/statusline` | Session health dashboard / customise the bottom info bar |
@@ -90,8 +96,29 @@ Type `/` to autocomplete. Grouped by what they're for:
 |--------|--------------|
 | `!` | **Bash mode** — run a shell command directly, no model, no tokens (e.g. `!git status`) |
 | `@` | **File mention** — pull a specific file/folder into context (autocompletes) |
+| `@agent-<name>` | **Delegate** — hand the task to a specific subagent (e.g. `@agent-cpp-reviewer`) |
 | `#` | **Add to memory** — save the line into a `CLAUDE.md` for next time |
 | `\` + Enter | **Multiline** — continue the prompt on a new line without sending |
+
+- **Paste an image:** `Ctrl+V` (or drag-and-drop) drops a screenshot / mock-up into
+  the prompt — great for UI work. On macOS use `Ctrl+V`, *not* `Cmd+V`.
+- **Pipe a file:** `cat error.log | claude -p "explain this"` feeds stdin into a
+  headless run (needs `-p`).
+
+## Rewind & checkpoints
+
+Every prompt is a **checkpoint**. Open the menu with `/rewind` or `Esc Esc`:
+
+| Restore | Effect |
+|---------|--------|
+| **Code + conversation** | Roll both back to that prompt |
+| **Conversation only** | Rewind the chat, keep the current code |
+| **Code only** | Revert file edits, keep the chat |
+| **Summarize from / up to here** | Compress the conversation after / before that point |
+
+- Checkpoints persist across sessions and are kept ~30 days (`cleanupPeriodDays`).
+- **Not captured:** files changed via Bash (`rm` / `mv` / `cp`) or edited outside
+  Claude Code. **Not a Git replacement** — keep committing at milestones.
 
 ## Hook events
 
@@ -113,7 +140,7 @@ Where a hook can attach in the session lifecycle (see [Example 2](02-hooks.md)):
 | **default** | Ask before every edit and command |
 | **acceptEdits** | Edit files freely, still ask before shell commands |
 | **plan** | Read-only — research and draft a plan, change nothing |
-| **bypassPermissions** | Do anything without asking ("YOLO" — sandbox only) |
+| **bypassPermissions** | Do anything without asking ("YOLO" — sandbox only). Not in the `Shift+Tab` cycle — enable explicitly with `--dangerously-skip-permissions` |
 
 Two more modes exist beyond the everyday `Shift+Tab` cycle — **auto** (act with
 background safety checks) and **dontAsk** (only pre-approved tools); see the
@@ -128,9 +155,20 @@ background safety checks) and **dontAsk** (only pre-approved tools); see the
 | `haiku` | Fast & cheap — boilerplate, quick checks, parallel subagents |
 | `opusplan` | Opus to plan, then auto-switches to Sonnet to implement |
 
-Tune reasoning depth with **effort** (`low` / `medium` / `high`, some models add
-higher tiers) via `/model` or settings. Higher effort = deeper thinking, more
-tokens, slower.
+**Effort** controls how deeply Claude reasons — higher = better answers, slower,
+more tokens. The ladder, low → high: `low` · `medium` · `high` · `xhigh` · `max`.
+
+| Set effort | How |
+|------------|-----|
+| In session | `/effort` (slider) · `/effort high` (jump to a level) · `/effort auto` (back to the model default) |
+| At launch | `claude --effort xhigh "..."` — this session only |
+| Persisted | `"effortLevel": "high"` in `settings.json`, or env `CLAUDE_CODE_EFFORT_LEVEL` |
+| Per agent / skill | an `effort:` field in the frontmatter |
+
+`max` is session-only; if a model lacks a tier, Claude falls back to its highest
+supported one. **One-shot:** drop `ultrathink` anywhere in a prompt to push that
+single turn harder *without* changing the session effort — only `ultrathink` is a
+real keyword (`think` / `think hard` are just ordinary words).
 
 ## Context economics (why `/compact` matters)
 

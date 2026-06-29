@@ -187,31 +187,55 @@ si, že tu **není `matcher`**: `Stop` není o nástroji, takže není co filtro
 ]
 ```
 
-Skript (`.claude/hooks/run-tests.sh`) je záměrně **informativní**: spustí
-`ctest`, vypíše jeden řádek a vždycky `exit 0` — takže tě nikdy nepřeruší.
+Skript (`.claude/hooks/run-tests.sh`) je záměrně **informativní**: vyprázdní
+JSON události Stop, spustí `ctest`, vypíše jeden řádek a vždycky `exit 0` — takže
+tě nikdy nepřeruší. Jeho výkonné řádky, doslova ze souboru:
 
 ```bash
-cat >/dev/null                         # vyprázdni JSON události Stop, který nepotřebujeme
-build_dir="${CLAUDE_PROJECT_DIR:-$(pwd)}/build"
-[ -d "$build_dir" ] && command -v ctest >/dev/null 2>&1 || exit 0   # ticho, dokud není sestaveno
+cat >/dev/null
+project_dir="${CLAUDE_PROJECT_DIR:-$(pwd)}"
+build_dir="$project_dir/build"
+if [ ! -d "$build_dir" ] || ! command -v ctest >/dev/null 2>&1; then
+    exit 0
+fi
 summary=$(ctest --test-dir "$build_dir" 2>/dev/null | grep -E 'tests passed' | tail -1 || true)
-[ -z "$summary" ] && exit 0
+if [ -z "$summary" ]; then
+    exit 0
+fi
 case "$summary" in
     *"0 tests failed"*) echo "run-tests hook: ✓ $summary" ;;
     *) echo "run-tests hook: ✗ $summary (run 'ctest --test-dir build' for details)" ;;
 esac
 ```
 
-- Zůstává **potichu, dokud nemáš sestavený build** (existuje `build/`), takže
-  na čerstvém klonu nikdy neotravuje.
-- Hlásí `✓`, když všechno projde, a `✗` jinak — pasivní záchranná síť, která ti
-  hned řekne, že nějaká změna rozbila test.
+- **Stráž (guard)** `if [ ! -d "$build_dir" ] || ! command -v ctest …; then exit 0; fi`
+  skončí, když neexistuje adresář `build/` **nebo** není `ctest` v PATH — takže
+  na čerstvém, nesestaveném klonu zůstane potichu místo toho, aby chybovala.
+- **Řádek se souhrnem** `ctest … | grep -E 'tests passed' | tail -1` ponechá jen
+  jednořádkový součet ctestu (např. `100% tests passed, 0 tests failed out of 13`);
+  `|| true` zabrání tomu, aby neúspěšný běh shodil skript pod `set -e`, a následné
+  `[ -z "$summary" ]` tiše skončí, když build zatím žádné testy neregistruje.
+- **Verdikt** — `case` vypíše `run-tests hook: ✓ $summary`, když součet obsahuje
+  `0 tests failed`, jinak `run-tests hook: ✗ $summary` s tipem, ať znovu spustíš
+  `ctest`.
 
 **Chceš, aby spíš *blokoval* než informoval?** `Stop` hook, který skončí
 nenulovým kódem (nebo vypíše `{"decision": "block", "reason": "..."}` na stdout),
 říká Claudovi, že **ještě není** hotovo — tak vynutíš „testy musí projít, než
 skončíš". My ten náš necháváme informativní, aby se živá workshopová session
 nezasekla v opravovací smyčce; přepni ho na blokující, když chceš tvrdou bránu.
+
+## Vyzkoušej druhý hook
+
+Nejdřív projekt jednou sestav (`cmake --build build`), pak se Clauda na cokoli
+zeptej. Když odpověď skončí, `Stop` hook spustí testovací sadu a v přepisu se
+objeví informativní řádek:
+
+```
+run-tests hook: ✓ 100% tests passed, 0 tests failed out of 13
+```
+
+Než poprvé sestavíš, hook zůstává potichu — to dělá svou práci ta stráž výše.
 
 ## Typy hooků: command, prompt, agent
 

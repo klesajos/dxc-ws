@@ -5,9 +5,11 @@
 ## Co je MCP?
 
 **MCP (Model Context Protocol)** je standard pro připojování AI asistentů
-k externím nástrojům. **MCP server** je malý program, který Claudovi nabízí
-schopnosti navíc — dotazy do databáze, hledání v dokumentaci, ovládání
-prohlížeče, čtení ticketovacího systému.
+k externím nástrojům. Představ si ho jako univerzální adaptér — něco jako
+USB-C: jedna standardní zásuvka, díky které se Claude připojí k libovolnému
+externímu nástroji nebo zdroji dat. **MCP server** je malý program, který
+Claudovi nabízí schopnosti navíc — dotazy do databáze, hledání
+v dokumentaci, ovládání prohlížeče, čtení ticketovacího systému.
 
 Claude Code umí sám od sebe číst/upravovat soubory a spouštět příkazy
 v terminálu. MCP je způsob, jak mu dát *všechno ostatní*.

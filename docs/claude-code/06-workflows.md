@@ -58,8 +58,13 @@ artifact.
 The workflow lives at `.claude/workflows/test-coverage-audit.js`. Saved
 workflows in `.claude/workflows/` are auto-discovered and become slash commands.
 
-**1. The `meta` block must be the first statement** (a file-header `//` comment before it is fine). It names the workflow (this
-becomes `/test-coverage-audit`) and describes its phases:
+**1. The `meta` block must be the very first statement — this is the one
+everyone trips on.** A stray `import`, `const`, or any executable line above
+`export const meta` makes the workflow **silently fail to register**:
+`/test-coverage-audit` never appears, with no error to explain why. A file-header
+`//` comment before `meta` is fine (this file opens with one); executable code is
+not. The block names the workflow (this becomes `/test-coverage-audit`) and
+describes its phases:
 
 ```js
 export const meta = {
@@ -73,9 +78,26 @@ export const meta = {
 }
 ```
 
-**2. Schemas force each agent to return data, not prose.** Passing a `schema` to
-`agent()` makes the runtime validate the agent's output, so the script gets a
-real object back — no parsing:
+**2. The five source files it inventories.** A `SRC_FILES` array names every file
+in `src/`, each with a one-line note so the reader agent orients quickly. This is
+the literal "five files" the Phase-1 fan-out runs over:
+
+```js
+const SRC_FILES = [
+  { file: 'src/board.cpp', note: 'pure rules: slideLineLeft, move, spawnRandom, isGameOver, hasWon' },
+  { file: 'src/game.cpp', note: 'main loop: toDirection, Game::run, spawn + redraw, win/over checks' },
+  { file: 'src/input.cpp', note: 'raw-mode terminal: getchar -> Command (WASD + arrow keys)' },
+  { file: 'src/renderer.cpp', note: 'draws the grid + score to the terminal' },
+  { file: 'src/main.cpp', note: 'entry point: constructs Game, calls run()' },
+]
+```
+
+**3. Three schemas force each agent to return data, not prose.** Passing a
+`schema` to `agent()` makes the runtime validate the agent's output, so the
+script gets a real object back — no parsing. The workflow defines one per phase:
+`BEHAVIOR_SCHEMA` (what one file does, branch by branch), `COVERAGE_SCHEMA`
+(which behaviour ids each `TEST_CASE` exercises), and `GAP_SCHEMA` (the
+prioritized gaps plus a rendered table). Only `BEHAVIOR_SCHEMA` is shown here:
 
 ```js
 const BEHAVIOR_SCHEMA = {
@@ -90,10 +112,12 @@ const BEHAVIOR_SCHEMA = {
 }
 ```
 
-**3. Phase 1 fans out with `parallel()` — and every agent is read-only.** Each
-reader runs as the built-in **`Explore`** agent type (`agentType: 'Explore'`),
-which can read and search but **cannot** `Edit`, `Write`, or build. That is how
-the whole workflow is guaranteed side-effect-free:
+`GAP_SCHEMA` carries a `markdown` field — and **that field is what the slash
+command ultimately returns** (see step 5).
+
+**4. Phase 1 fans out with `parallel()`, then Phase 2 maps the tests — and every
+agent is read-only.** Each agent runs as the built-in **`Explore`** type
+(`agentType: 'Explore'`); `phase()` just labels each group in the progress UI:
 
 ```js
 phase('Inventory')
@@ -104,6 +128,10 @@ const inventories = await parallel(
   )
 )
 const behaviors = inventories.filter(Boolean).flatMap((r) => r.behaviors)
+
+phase('Map tests')
+const coverageResult = await agent(`Read tests/test_board.cpp ... map each TEST_CASE ...`,
+  { label: 'map:tests', schema: COVERAGE_SCHEMA, agentType: 'Explore' })
 ```
 
 `parallel()` is a **barrier**: it waits for *all* readers before continuing.
@@ -112,24 +140,51 @@ tests onto it. (Contrast `pipeline()`, which runs each *item* through all stages
 independently; it suits per-item chains like the feature-pipeline below, not a
 fan-in.)
 
-**4. Phases 2 and 3 run sequentially** because each depends on the previous
-phase's aggregated result — `phase()` just labels the group in the progress UI:
+> **Why is every agent `Explore`?** `agentType: 'Explore'` agents can read and
+> search but have no `Edit`, `Write`, or `Bash`. That enforcement — not a
+> request — is what makes `/test-coverage-audit` safe to run on a loop:
+> `git status` stays clean every time. Add write power only together with
+> isolation (`isolation: 'worktree'`).
+
+**5. The reduce prompt is what makes the run deterministic.** Phase 3 hands one
+reducer the whole inventory and coverage map, and — crucially — *pins the
+findings it must surface* right in the prompt. Here is that Phase-3 prompt
+verbatim (only the injected JSON is elided):
 
 ```js
-phase('Map tests')
-const coverageResult = await agent(`Read tests/test_board.cpp ... map each TEST_CASE ...`,
-  { label: 'map:tests', schema: COVERAGE_SCHEMA, agentType: 'Explore' })
-
 phase('Report gaps')
-const report = await agent(`Cross-reference behaviours vs coverage; emit a prioritized gap report ...`,
-  { label: 'reduce:gaps', schema: GAP_SCHEMA, agentType: 'Explore' })
+const report = await agent(
+  `You are auditing unit-test coverage for a 2048 C++ game. Cross-reference the behaviour ` +
+    `inventory against the coverage map and produce a PRIORITIZED gap report. A gap is a ` +
+    `behaviour with pureLogic=true that no TEST_CASE covers; prioritize by risk and how core ` +
+    `the behaviour is (slide/merge logic is the heart of the game).\n\n` +
+    `Known high-value gaps you should expect to surface:\n` +
+    `- slideLineLeft on {4, 4, 8, 0} (the TODO in tests/test_board.cpp).\n` +
+    `- spawnRandom: returns false on a full board, and its 2-vs-4 distribution.\n` +
+    `- a FULL board that still contains a mergeable pair: isGameOver() should return false. ` +
+    `Note that isGameOver() in src/board.cpp only checks for empty cells, so a correct test ` +
+    `for this case currently FAILS — flag it as a latent bug, do not hide it.\n` +
+    `- multi-move sequences (score/state across several moves).\n` +
+    `- the 'changed' flag in src/game.cpp is computed but ignored, so a tile spawns even ` +
+    `after a no-op move (game-loop behaviour, currently untested).\n\n` +
+    `BEHAVIOURS:\n(… the behaviour inventory, injected as JSON …)\n\n` +
+    `COVERAGE:\n(… the coverage map, injected as JSON …)\n\n` +
+    `Return a 'gaps' array and a 'markdown' field. The markdown must contain a table with ` +
+    `columns: behaviour id | file:line | priority | suggested TEST_CASE name | why. This is a ` +
+    `read-only audit: recommend tests to add, do not edit anything.`,
+  { label: 'reduce:gaps', phase: 'Report gaps', schema: GAP_SCHEMA, agentType: 'Explore' }
+)
 
 log(`Audited ${behaviors.length} behaviours; found ${report.gaps.length} coverage gaps.`)
-return report.markdown   // the script's return value is what the command surfaces
+return report.markdown   // the GAP_SCHEMA.markdown field is what the command surfaces
 ```
 
-The script's `return` value is what `/test-coverage-audit` shows you — here, the
-rendered Markdown report.
+Pinning the expected gaps in the prompt is **why** re-running
+`/test-coverage-audit` surfaces the same findings every time: the model isn't
+rediscovering them from scratch, it's confirming a known list (and is told to
+flag the `isGameOver()` case as a *latent bug*, not hide it). The script's
+`return report.markdown` is exactly that `GAP_SCHEMA.markdown` field — what the
+slash command prints.
 
 ## A more advanced shape: the feature-pipeline (described, not shipped)
 

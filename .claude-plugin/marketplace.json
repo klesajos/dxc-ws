@@ -8,7 +8,7 @@
     {
       "name": "2048-dev",
       "source": "./plugins/2048-dev",
-      "description": "Dev workflow commands for the 2048 workshop project"
+      "description": "Dev workflow skill (build-test) and the game-explorer agent for the 2048 workshop project"
     }
   ]
 }
