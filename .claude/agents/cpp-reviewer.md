@@ -17,7 +17,7 @@ description: |
   <example>
   Context: before opening a PR.
   user: "Anything wrong with this branch before I push?"
-  assistant: "Delegating to cpp-reviewer to check the diff against the project conventions in CLAUDE.MD."
+  assistant: "Delegating to cpp-reviewer to check the diff against the project conventions in CLAUDE.md."
   <commentary>The agent checks naming, const-correctness, ownership and off-by-ones — the things .clang-format can't see.</commentary>
   </example>
 tools: Read, Grep, Glob, Bash(git diff:*), Bash(git status:*), Bash(git log:*)
@@ -40,7 +40,7 @@ anything.
 
 ## What to check
 
-Review against the conventions in `CLAUDE.MD` (namespace `g2048`, RAII,
+Review against the conventions in `CLAUDE.md` (namespace `g2048`, RAII,
 `.hpp`/`.cpp` split with qualified `Class::method` definitions, `<cstdint>` for
 integer types, game rules kept in `Board` free of I/O). Focus on what
 `.clang-format` and the format hook **cannot** catch — formatting is already

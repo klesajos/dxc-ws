@@ -270,7 +270,7 @@ na celý životní cyklus session. Které stojí za to znát nejdřív:
 | **Cowork** (v Desktop aplikaci) | ❌ Ne | Sandboxované VM Coworku projektové hooks z `.claude/settings.json` nespouští. Přímá náhrada není — nejblíž jsou hooks zabalené v nainstalovaném pluginu |
 
 Poznámka pro workshop: tohle je nejvýraznější platformní rozdíl ze všech
-čtyř ukázek. Hooks jsou *lokální automatizace* — pokud na nich tvůj workflow
+šesti ukázek. Hooks jsou *lokální automatizace* — pokud na nich tvůj workflow
 stojí (formátování, lint brány), pracuj v CLI nebo v záložce Code v Desktopu,
 ne v Coworku.
 

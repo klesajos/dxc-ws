@@ -116,6 +116,10 @@ Kam se hook může navěsit v životním cyklu session (viz [Ukázka 2](02-hooks
 | **plan** | Jen pro čtení — bádá a sepíše plán, nic nemění |
 | **bypassPermissions** | Cokoli bez ptaní („YOLO" — jen v sandboxu) |
 
+Dva další režimy existují mimo běžný cyklus `Shift+Tab` — **auto** (jedná
+s bezpečnostními kontrolami na pozadí) a **dontAsk** (jen předem schválené
+nástroje); viz [dokumentace režimů oprávnění](https://code.claude.com/docs/en/permission-modes).
+
 ## Modely a effort
 
 | Model | Nejlepší na |
@@ -140,13 +144,17 @@ přemýšlení, víc tokenů, pomalejší.
 
 ## Co je v roce 2026 legacy (sjednocení)
 
-Anthropic slučuje několik překrývajících se autorovacích povrchů do **Skills**
-(Ukázka 1). Staré soubory dál fungují, ale nové věci dělej přes Skills:
+Vlastní slash příkazy byly **sloučeny do Skills** (Ukázka 1). Staré soubory
+příkazů fungují dál, ale nové věci dělej přes Skills:
 
 | Bývalo samostatné | Teď | Stav |
 |-------------------|-----|------|
 | Vlastní slash příkazy (`.claude/commands/*.md`) | **Skills** (`.claude/skills/<name>/SKILL.md`) | Sloučeno — obojí vytváří `/name`; legacy soubory fungují dál |
-| Output styles | **Skills** | Přechází na Skills |
+
+(Output styles zůstávají *samostatnou*, stále aktuální funkcí — mění systémový
+prompt, zatímco skills načítají instrukce k úloze — viz
+[dokumentace output styles](https://code.claude.com/docs/en/output-styles);
+deprecován byl jen samostatný příkaz `/output-style` ve prospěch `/config`.)
 
 Skill je striktní nadmnožina starého příkazu: stejné vyvolání `/name`, **plus**
 volitelné autonomní načtení, složka pro pomocné soubory a řízení vyvolání. Chceš,

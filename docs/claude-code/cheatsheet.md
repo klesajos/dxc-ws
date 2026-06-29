@@ -115,13 +115,17 @@ Where a hook can attach in the session lifecycle (see [Example 2](02-hooks.md)):
 | **plan** | Read-only — research and draft a plan, change nothing |
 | **bypassPermissions** | Do anything without asking ("YOLO" — sandbox only) |
 
+Two more modes exist beyond the everyday `Shift+Tab` cycle — **auto** (act with
+background safety checks) and **dontAsk** (only pre-approved tools); see the
+[permission-modes docs](https://code.claude.com/docs/en/permission-modes).
+
 ## Models & effort
 
 | Model | Best for |
 |-------|----------|
 | `opus` | Hardest reasoning — architecture, tricky bugs |
 | `sonnet` | Daily driver — features, refactors, tests |
-| `haiku` | Fast & cheap — boilerplate, quick checks, parallel sub-agents |
+| `haiku` | Fast & cheap — boilerplate, quick checks, parallel subagents |
 | `opusplan` | Opus to plan, then auto-switches to Sonnet to implement |
 
 Tune reasoning depth with **effort** (`low` / `medium` / `high`, some models add
@@ -139,13 +143,17 @@ tokens, slower.
 
 ## What's legacy in 2026 (the convergence)
 
-Anthropic is collapsing several overlapping authoring surfaces into **Skills**
-(Example 1). Old files keep working, but new work should use Skills:
+Custom slash commands have been **merged into Skills** (Example 1). The old
+command files keep working, but new work should use Skills:
 
 | Was its own thing | Now | Status |
 |-------------------|-----|--------|
 | Custom slash commands (`.claude/commands/*.md`) | **Skills** (`.claude/skills/<name>/SKILL.md`) | Merged — both still create `/name`; legacy files keep working |
-| Output styles | **Skills** | Moving to Skills |
+
+(Output styles are a *separate*, still-current feature — they modify the system
+prompt, skills load task instructions — see the
+[output-styles docs](https://code.claude.com/docs/en/output-styles); only the
+standalone `/output-style` command was deprecated, in favour of `/config`.)
 
 A skill is a strict superset of an old command: same `/name` invocation, **plus**
 optional autonomous loading, a supporting-files folder, and invocation control.

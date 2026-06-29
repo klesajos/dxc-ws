@@ -273,7 +273,7 @@ Full list of events and fields: [official hooks documentation](https://code.clau
 | **Claude Desktop app — Code tab** | ✅ Yes | Same engine, same config files as the CLI. Confirm the one-time project trust dialog; hooks then run identically |
 | **Cowork** (in the Desktop app) | ❌ No | Cowork's sandboxed VM does not execute project-scoped hooks from `.claude/settings.json`. There is no direct equivalent — hooks shipped inside an installed plugin are the closest option |
 
-Note for the workshop: this is the clearest platform difference of the four
+Note for the workshop: this is the clearest platform difference of the six
 examples. Hooks are a *local automation* feature — if your workflow depends
 on them (formatting, lint gates), run it in the CLI or the Desktop Code tab,
 not in Cowork.

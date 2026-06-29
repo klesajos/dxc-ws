@@ -47,7 +47,7 @@ testovat. Začni u `slideLineLeft()` v `src/board.cpp`, to je srdce hry.
 
 ## Ukázky Claude Code
 
-Repo zároveň ukazuje čtyři projektové způsoby, jak rozšířit Claude Code —
-skills, hooks, MCP servery a pluginy. Každá ukázka je samostatná, minimální
-a navázaná na tenhle kód. Návody jsou dvojjazyčné:
+Repo zároveň ukazuje šest projektových způsobů, jak rozšířit Claude Code —
+skills, hooks, MCP servery, pluginy, subagenty a workflows. Každá ukázka je
+samostatná, minimální a navázaná na tenhle kód. Návody jsou dvojjazyčné:
 [anglicky](docs/claude-code/README.md) | [česky](docs/claude-code/README.cs.md).

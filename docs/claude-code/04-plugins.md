@@ -204,7 +204,7 @@ and [marketplace documentation](https://code.claude.com/docs/en/plugin-marketpla
 | **Claude Desktop app — Code tab** | ✅ Yes | Same as CLI: open the project, accept the trust dialog, `/2048-dev:build-test` appears |
 | **Cowork** (in the Desktop app) | ⚠️ Partially | Cowork does **not** read the in-repo marketplace or project settings. But Cowork has its own plugin system: install plugins through Cowork's plugin management (or upload a packaged `.plugin` file), and their commands/skills then work in Cowork tasks. Plugin **hooks** depending on local tools may still behave differently in the sandbox |
 
-So of the four mechanisms, plugins are the most portable to Cowork — the
+So of the six mechanisms, plugins are the most portable to Cowork — the
 *content* works there, only the in-repo *distribution channel*
 (`extraKnownMarketplaces` in project settings) does not. For a team on
 Cowork, publish the plugin to a shared marketplace and install it through
