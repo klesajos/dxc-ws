@@ -35,7 +35,7 @@ přes N souborů, podmínit fázi 2 fází 1, zredukovat víc výsledků do jedn
 ## Co tahle ukázka dělá
 
 Tahle ukázka přidává jedno spustitelné workflow, `test-coverage-audit`, které
-auditovuje, jak dobře `tests/test_board.cpp` pokrývá logiku v `src/`. Je **jen
+audituje, jak dobře `tests/test_board.cpp` pokrývá logiku v `src/`. Je **jen
 pro čtení, deterministické a opakovatelné** — vypíše prioritizovanou zprávu
 o mezerách a nikdy nezapíše soubor, takže ho můžeš spouštět, jak chceš často,
 se stabilním výsledkem.
@@ -211,7 +211,7 @@ po položkách, bez bariéry), `log()`. Úplná reference:
 |-----------|----------|-----------|
 | **Claude Code CLI** (terminál) | ✅ Ano | Workflows v `.claude/workflows/` se objeví automaticky; spusť `/test-coverage-audit` |
 | **Desktop — záložka Code** | ✅ Ano* | Stejný engine jako CLI; projektová workflow se načtou po dialogu důvěry. *Ověř, že je funkce workflows ve tvém buildu zapnutá |
-| **Cowork** (v Desktop appce) | ❌ Ne* | Cowork projektovou konfiguraci `.claude/` nenačítá, včetně `.claude/workflows/`. *Orchestrace workflow je funkce lokálního enginu; pokud je potřebuješ v Coworku, zabal podkladové agenty do pluginu |
+| **Cowork** (v Desktop aplikaci) | ❌ Ne* | Cowork projektovou konfiguraci `.claude/` nenačítá, včetně `.claude/workflows/`. *Orchestrace workflow je funkce lokálního enginu; pokud je potřebuješ v Coworku, zabal podkladové agenty do pluginu |
 
 ## Řešení problémů
 

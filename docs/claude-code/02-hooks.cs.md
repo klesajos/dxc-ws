@@ -232,7 +232,7 @@ determinismus za úsudek:
   "prompt": "Přidává staged diff test ke každé nové veřejné metodě? Odpověz ano nebo ne." }
 ```
 
-Pravidlo palce: sáhni nejdřív po `command` (je zdarma a okamžitý), po `prompt`,
+Základní pravidlo: sáhni nejdřív po `command` (je zdarma a okamžitý), po `prompt`,
 když kontrola potřebuje porozumění jazyku, a po `agent` jen tehdy, když se
 kontrola sama musí prohrabat kódem. Tohle repo dodává `command` hooky; o dalších
 dvou stačí vědět, že existují.
