@@ -10,7 +10,7 @@ description: |
   Context: there is a TODO in tests/test_board.cpp asking for a test of the line {4, 4, 8, 0}.
   user: "Add the missing test for sliding the line {4, 4, 8, 0}."
   assistant: "I'll hand this to the board-test-writer agent, which knows the slideLineLeft conventions and will run ctest to confirm."
-  <commentary>Writing a board test is exactly this agent's job: it follows the board-tests skill and verifies with the suite.</commentary>
+  <commentary>{4, 4, 8, 0} is a deliberate trap: it exposes the slideLineLeft() cascade-merge bug. The agent keeps the correct assertion ({8, 8, 0, 0}) and reports the bug rather than weakening the test.</commentary>
   </example>
 
   <example>
@@ -58,8 +58,15 @@ not restate them; apply them.
 ## Report honestly — do not hide bugs
 
 If a *correct* test you write fails because the production code is wrong, that
-is a finding, not a problem to paper over. Two known traps in this codebase:
+is a finding, not a problem to paper over. Three known traps in this codebase:
 
+- **`slideLineLeft()`** (`src/board.cpp`) does not advance its scan index after a
+  merge, so a freshly merged tile can merge again in the same slide. The line
+  `{4, 4, 8, 0}` *should* slide to `{8, 8, 0, 0}` (score +8), but the current code
+  cascades it to `{16, 0, 0, 0}` (score +24) — a tile may merge at most once per
+  move. If your test asserts the correct result, it will fail. **Keep the correct
+  assertion** and report that the test exposes the `slideLineLeft()` cascade-merge
+  bug — do not relax it to `{16, 0, 0, 0}` to force a green run.
 - **`isGameOver()`** (`src/board.cpp`) only checks for an empty cell. A full
   board that still contains a mergeable pair *should* return `false`, but the
   current code returns `true`. If your test asserts the correct behaviour, it
