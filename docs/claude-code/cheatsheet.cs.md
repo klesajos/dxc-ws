@@ -27,6 +27,9 @@ průvodce.
 | `claude --model opus` | Spustí na konkrétním modelu (`opus`, `sonnet`, `haiku`, `opusplan`) |
 | `claude --agent cpp-reviewer` | Spustí celou session jako pojmenovaného subagenta |
 | `claude --add-dir ../lib` | Dá session přístup k dalším složkám mimo repo |
+| `claude --permission-mode plan` | Spustí v režimu oprávnění (`plan` / `acceptEdits` / `auto` / `dontAsk` / `bypassPermissions`) |
+| `claude -p "..." --allowedTools "Read,Edit,Bash(git diff *)"` | Allowlist nástrojů, které smí bezobslužný / CI běh použít |
+| `claude -p "..." --output-format json` | Headless výstup jako `json` nebo `stream-json` pro skripty |
 
 ## Slash příkazy
 
@@ -37,10 +40,12 @@ Napiš `/` pro automatické doplnění. Seskupené podle účelu:
 | Příkaz | Co dělá |
 |--------|---------|
 | `/clear` | Vymaže konverzaci — čistý štít pro novou úlohu |
-| `/compact` | Shrne dosavadní konverzaci a uvolní kontext (zachová podstatu) |
+| `/compact [pokyny]` | Shrne konverzaci a uvolní kontext; volitelné zaměření, např. `/compact zachovej práci na authu` |
 | `/context` | Ukáže, co zrovna plní kontextové okno |
+| `/btw <dotaz>` | Rychlý vedlejší dotaz — zodpovězený *bez* přidání do historie konverzace |
 | `/rewind` | Skočí na dřívější checkpoint (kód i/nebo konverzaci) — taky `Esc Esc` |
 | `/resume` | Přepne na jinou minulou session bez opuštění |
+| `/rename <název>` | Přejmenuje aktuální session (snadnější dohledání přes `--resume`) |
 | `/export` | Uloží celou konverzaci do Markdown souboru |
 
 **Konfigurace**
@@ -50,6 +55,7 @@ Napiš `/` pro automatické doplnění. Seskupené podle účelu:
 | `/config` | Otevře menu nastavení (model, téma, oprávnění) |
 | `/model` | Přepne model uprostřed session |
 | `/permissions` | Zobrazí / udělí trvalá oprávnění nástrojům |
+| `/sandbox` | Přepne izolaci souborového systému / sítě pro Bash (nebo nastav `"sandbox.enabled": true`) |
 | `/memory` | Upraví trvalou paměť (soubory `CLAUDE.md`) |
 | `/init` | Vygeneruje startovní `CLAUDE.md` pro tohle repo |
 | `/status`, `/statusline` | Přehled stavu session / úprava spodní info lišty |
@@ -91,12 +97,33 @@ Napiš `/` pro automatické doplnění. Seskupené podle účelu:
 |--------|---------|
 | `!` | **Bash režim** — spustí shellový příkaz přímo, bez modelu, bez tokenů (např. `!git status`) |
 | `@` | **Zmínka souboru** — vtáhne konkrétní soubor/složku do kontextu (doplňuje se) |
+| `@agent-<název>` | **Delegace** — předá úlohu konkrétnímu subagentovi (např. `@agent-cpp-reviewer`) |
 | `#` | **Přidat do paměti** — uloží řádek do `CLAUDE.md` na příště |
 | `\` + Enter | **Víceřádkový vstup** — pokračuj na novém řádku bez odeslání |
 
+- **Vlož obrázek:** `Ctrl+V` (nebo drag-and-drop) hodí screenshot / mockup do
+  promptu — skvělé na UI práci. Na macOS použij `Ctrl+V`, *ne* `Cmd+V`.
+- **Pipe souboru:** `cat error.log | claude -p "vysvětli tuhle chybu"` pošle stdin
+  do headless běhu (potřebuje `-p`).
+
+## Rewind a checkpointy
+
+Každý prompt je **checkpoint**. Menu otevřeš přes `/rewind` nebo `Esc Esc`:
+
+| Obnovit | Účinek |
+|---------|--------|
+| **Kód + konverzaci** | Vrátí obojí zpět k tomu promptu |
+| **Jen konverzaci** | Přetočí chat, aktuální kód nechá |
+| **Jen kód** | Vrátí úpravy souborů, chat nechá |
+| **Shrnout odsud / sem** | Zkomprimuje konverzaci za / před tímto bodem |
+
+- Checkpointy přetrvávají mezi sessions a drží se ~30 dní (`cleanupPeriodDays`).
+- **Nezachytí se:** soubory změněné přes Bash (`rm` / `mv` / `cp`) nebo upravené
+  mimo Claude Code. **Není náhrada Gitu** — commituj na milnících.
+
 ## Události hooků
 
-Kam se hook může navěsit v životním cyklu session (viz [Ukázka 2](02-hooks.md)):
+Kam se hook může navěsit v životním cyklu session (viz [Ukázka 2](02-hooks.cs.md)):
 
 | Událost | Spustí se | Typické použití |
 |---------|-----------|-----------------|
@@ -114,7 +141,7 @@ Kam se hook může navěsit v životním cyklu session (viz [Ukázka 2](02-hooks
 | **default** | Ptát se před každou úpravou a příkazem |
 | **acceptEdits** | Volně upravovat soubory, u shell příkazů se pořád ptá |
 | **plan** | Jen pro čtení — bádá a sepíše plán, nic nemění |
-| **bypassPermissions** | Cokoli bez ptaní („YOLO" — jen v sandboxu) |
+| **bypassPermissions** | Cokoli bez ptaní („YOLO" — jen v sandboxu). Není v cyklu `Shift+Tab` — zapni ho explicitně přes `--dangerously-skip-permissions` |
 
 Dva další režimy existují mimo běžný cyklus `Shift+Tab` — **auto** (jedná
 s bezpečnostními kontrolami na pozadí) a **dontAsk** (jen předem schválené
@@ -129,9 +156,20 @@ nástroje); viz [dokumentace režimů oprávnění](https://code.claude.com/docs
 | `haiku` | Rychlý a levný — boilerplate, rychlé kontroly, paralelní subagenti |
 | `opusplan` | Opus na plán, pak se automaticky přepne na Sonnet na implementaci |
 
-Hloubku úvah lad' přes **effort** (`low` / `medium` / `high`, některé modely
-přidávají vyšší stupně) přes `/model` nebo nastavení. Vyšší effort = hlubší
-přemýšlení, víc tokenů, pomalejší.
+**Effort** řídí, jak hluboko Claude přemýšlí — vyšší = lepší odpovědi, pomalejší,
+víc tokenů. Stupnice od nejnižšího: `low` · `medium` · `high` · `xhigh` · `max`.
+
+| Nastavení effortu | Jak |
+|-------------------|-----|
+| V session | `/effort` (posuvník) · `/effort high` (skok na úroveň) · `/effort auto` (zpět na výchozí pro model) |
+| Při spuštění | `claude --effort xhigh "..."` — jen pro tuhle session |
+| Trvale | `"effortLevel": "high"` v `settings.json`, nebo env `CLAUDE_CODE_EFFORT_LEVEL` |
+| Per agent / skill | pole `effort:` ve frontmatteru |
+
+`max` je jen pro session; když model nějaký stupeň nemá, Claude spadne na nejvyšší
+podporovaný. **Jednorázově:** napiš `ultrathink` kamkoli do promptu a ten jeden
+tah půjde hlouběji *bez* změny effortu session — jediné platné klíčové slovo je
+`ultrathink` (`think` / `think hard` jsou jen běžná slova).
 
 ## Ekonomika kontextu (proč na `/compact` záleží)
 
@@ -168,4 +206,4 @@ Zdroj: [oficiální dokumentace Skills](https://code.claude.com/docs/en/skills) 
 
 **Měj tenhle tahák po ruce při práci.** Je to reference, ne tutoriál — pro *jak*
 a *proč* každého mechanismu rozšíření viz číslované průvodce v
-[indexu](README.md).
+[indexu](README.cs.md).

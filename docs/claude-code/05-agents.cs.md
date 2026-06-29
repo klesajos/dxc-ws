@@ -45,26 +45,36 @@ Projektový subagent je jediný Markdown soubor v `.claude/agents/<jmeno>.md`:
     └── cpp-reviewer.md
 ```
 
-Nejlíp se čte `cpp-reviewer` — omezení nástrojů *je* tou lekcí:
+Nejlíp se čte `cpp-reviewer` — omezení nástrojů *je* tou lekcí. Tady je jeho
+frontmatter **doslova** ze souboru `.claude/agents/cpp-reviewer.md`:
 
 ```yaml
 ---
 name: cpp-reviewer
 description: |
-  Use to review C++ changes in this repo for correctness and house style...
+  Use to review C++ changes in this repo for correctness and house style before
+  you commit. Reads the diff and the surrounding code and reports severity-tagged
+  findings. It has no Edit or Write access — it reviews, it never modifies. Pairs
+  with the clang-format hook: the hook handles mechanical formatting, this agent
+  handles everything formatting cannot catch.
+
   <example>
+  Context: the user just edited src/game.cpp and src/board.cpp and wants a second opinion.
   user: "Review my uncommitted changes."
-  assistant: "I'll run the cpp-reviewer agent — it reads the diff and reports..."
-  <commentary>Read-only semantic review is exactly this agent's role...</commentary>
+  assistant: "I'll run the cpp-reviewer agent — it reads the diff and reports Blocker/Should-fix/Nit findings with file:line, and modifies nothing."
+  <commentary>Read-only semantic review is exactly this agent's role; git status stays unchanged afterwards.</commentary>
+  </example>
+
+  <example>
+  Context: before opening a PR.
+  user: "Anything wrong with this branch before I push?"
+  assistant: "Delegating to cpp-reviewer to check the diff against the project conventions in CLAUDE.md."
+  <commentary>The agent checks naming, const-correctness, ownership and off-by-ones — the things .clang-format can't see.</commentary>
   </example>
 tools: Read, Grep, Glob, Bash(git diff:*), Bash(git status:*), Bash(git log:*)
 model: inherit
 color: blue
 ---
-
-# C++ reviewer (read-only)
-You review C++ changes... You **do not have Edit or Write tools** — that is
-deliberate...
 ```
 
 Co která část dělá:
@@ -86,17 +96,71 @@ Co která část dělá:
 - Všechno **pod** frontmatterem je **systémový prompt** agenta — jeho persona
   a instrukce, které platí jen v jeho vlastním kontextu.
 
-Zbylí dva přidávají po jedné myšlence:
+### Systémový prompt: kde se projeví záruka „jen pro čtení"
 
-- `board-test-writer.md` má ve frontmatteru **`skills: board-tests`**. To
-  **přednačte skill z Ukázky 1** do agenta, takže zdědí testovací konvence, aniž
-  by je kopíroval. Ukázka skládání vrstvy na vrstvu. Má celou sadu
-  `Read, Edit, Write, Grep, Glob, Bash` — čtecí nástroje plus `Edit`/`Write` na
-  přidání `TEST_CASE` a `Bash` na spuštění `ctest`.
-- `plugins/2048-dev/agents/game-explorer.md` žije **uvnitř pluginu**, ve složce
-  `agents/` **vedle** `commands/` (viz Ukázka 4, která už `agents/` uvádí jako
-  platnou složku pluginu). Claude Code ho auto-objeví a pojmenuje
-  **`2048-dev:game-explorer`**. Žádný záznam v settings není potřeba.
+V těle přestává být „jen pro čtení" slibem a stává se něčím, co *vidíš*.
+`cpp-reviewer` zakončuje svůj systémový prompt pevným `## Output format` — tady
+**doslova**:
+
+```markdown
+## Output format
+
+Group findings by severity, most serious first:
+
+- **Blocker** — wrong behaviour or a build break.
+- **Should-fix** — a real problem that is not strictly breaking.
+- **Nit** — style/clarity, optional.
+
+Each finding: `path/file.cpp:line` — one sentence on what is wrong and one on the
+fix. If you find nothing in a category, say so. End with the line:
+
+> No files modified — review only.
+```
+
+Tahle poslední řádka je důkaz dema. Když se zeptáš *„Zkontroluj moje necommitnuté
+změny,"* měl bys vidět přesně tuhle patičku — `> No files modified — review only.` —
+a **nezměněný `git status`**. Frontmatter `Edit`/`Write` *odepírá*; systémový
+prompt ten důsledek zviditelní na očích.
+
+Zbylí dva přidávají po jedné myšlence.
+
+**`board-test-writer.md`** má ve frontmatteru **`skills: board-tests`**. To
+**přednačte skill z Ukázky 1** do agenta, takže zdědí testovací konvence, aniž
+by je kopíroval — subagent a skill se skládají vrstva na vrstvu. Jeho seznam je
+celá sada **`tools: Read, Edit, Write, Grep, Glob, Bash`**: čtecí nástroje plus
+`Edit`/`Write` na přidání `TEST_CASE` a `Bash` na spuštění `ctest`.
+
+```yaml
+---
+name: board-test-writer
+description: |
+  Use to write or extend Catch2 unit tests for the 2048 board logic in
+  tests/test_board.cpp. ...
+tools: Read, Edit, Write, Grep, Glob, Bash
+model: inherit
+color: green
+skills: board-tests
+---
+```
+
+**`plugins/2048-dev/agents/game-explorer.md`** žije **uvnitř pluginu**, ve složce
+`agents/` **vedle** `commands/` (viz Ukázka 4, která už `agents/` uvádí jako
+platnou složku pluginu). Jeho **`tools: Read, Grep, Glob`** ho dělají jen pro
+čtení **bez `Bash`** a nemá vůbec **žádnou řádku `model:`**. Soubor sám uvádí
+`name: game-explorer`; Claude Code ho auto-objeví a pojmenuje
+**`2048-dev:game-explorer`** *protože je zabalený v pluginu*. Žádný záznam
+v settings není potřeba.
+
+```yaml
+---
+name: game-explorer
+description: |
+  Use to understand how a feature flows through the 2048 codebase before changing
+  it. ...
+tools: Read, Grep, Glob
+color: cyan
+---
+```
 
 > **Skutečná hranice schopností:** agent zabalený v pluginu **nemůže** definovat
 > vlastní `hooks`, `mcpServers` ani `permissionMode` — ty patří pluginu, ne
@@ -124,8 +188,10 @@ Zbylí dva přidávají po jedné myšlence:
 3. **Rozhodni o jeho pravomocech.** Jen pro čtení? Vypiš `Read, Grep, Glob`
    a dost. Potřebuje upravovat a sestavovat? Přidej `Edit, Write, Bash`. Pole
    `tools` vynech, jen když opravdu potřebuje všechno.
-4. **Restartuj Claude Code** (nebo spusť novou session) — agenti se objevují při
-   startu session.
+4. **Restartuj session — krok, na který každý zapomene.** Agenti se objevují jen
+   při startu session; přidat `.claude/agents/<jmeno>.md` během běžící session
+   a pak napsat `@agent-<jmeno>` skončí chybou „agent nenalezen", dokud nespustíš
+   čerstvý `claude`.
 5. **Vyvolej ho** třemi způsoby: prostou prosbou odpovídající `description`,
    zmínkou `@agent-my-agent`, nebo `claude --agent my-agent`.
 6. **Zacommituj ho**, ať ho má každý, kdo si repo naklonuje:

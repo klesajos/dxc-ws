@@ -18,7 +18,7 @@ nejjednodušší po nejpokročilejší:
 | 3 | [MCP](03-mcp.cs.md) | Jak Clauda připojit k externím nástrojům a zdrojům dat | `.mcp.json` |
 | 4 | [Pluginy](04-plugins.cs.md) | Jak zabalit příkazy/skills/hooks, aby je mohl sdílet celý tým | `plugins/2048-dev/` + `.claude-plugin/marketplace.json` |
 | 5 | [Subagenti](05-agents.cs.md) | Jak delegovat samostatný úkol do izolovaného kontextu s vlastními nástroji a personou | `.claude/agents/` + `plugins/2048-dev/agents/` |
-| 6 | [Workflows](06-workflows.cs.md) | Jak orchestrovat víc agentů s deterministickým, kódem definovaným tokem řízení | `.claude/workflows/` |
+| 6 | [Workflows](06-workflows.cs.md) | Jak spustit víc agentů v pevně daném, opakovatelném pořadí definovaném v kódu | `.claude/workflows/` |
 
 Každý návod existuje ve dvou jazycích: `xx-nazev.md` je anglicky,
 `xx-nazev.cs.md` česky. Obsah je stejný. Až projdeš všech šest, [katalog
@@ -71,7 +71,7 @@ Každý návod má podrobnou sekci „Kde to funguje"; shrnutí:
 | MCP (`.mcp.json`) | ✅ | ✅ | ❌ — použij **Konektory** na claude.ai |
 | Plugin (in-repo marketplace) | ✅ | ✅ | ⚠️ — obsah funguje, ale instaluje se přes správu pluginů v Coworku, ne přes projektové nastavení |
 | Subagenti (`.claude/agents/`) | ✅ | ✅ | ❌ — zabal agenta raději do pluginu |
-| Workflows (`.claude/workflows/`) | ✅ | ✅* | ❌* — lokální orchestrace; *ověř podle buildu |
+| Workflows (`.claude/workflows/`) | ✅ | ✅* | ❌* — lokální orchestrace; *podpora Desktopu/Coworku závisí na tvém buildu — ověř ve své verzi |
 
 Proč: CLI a záložka **Code** v Desktopu běží na stejném enginu a sdílejí
 veškerou projektovou konfiguraci — Desktop jen přidává jednorázový dialog

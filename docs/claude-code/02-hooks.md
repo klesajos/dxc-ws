@@ -190,31 +190,55 @@ filter on.
 ]
 ```
 
-The script (`.claude/hooks/run-tests.sh`) is deliberately **advisory**: it runs
-`ctest`, prints one line, and always `exit 0` — so it never interrupts you.
+The script (`.claude/hooks/run-tests.sh`) is deliberately **advisory**: it
+drains the Stop-event JSON, runs `ctest`, prints one line, and always `exit 0` —
+so it never interrupts you. Its executable lines, verbatim from the file:
 
 ```bash
-cat >/dev/null                         # drain the Stop-event JSON we don't need
-build_dir="${CLAUDE_PROJECT_DIR:-$(pwd)}/build"
-[ -d "$build_dir" ] && command -v ctest >/dev/null 2>&1 || exit 0   # quiet until built
+cat >/dev/null
+project_dir="${CLAUDE_PROJECT_DIR:-$(pwd)}"
+build_dir="$project_dir/build"
+if [ ! -d "$build_dir" ] || ! command -v ctest >/dev/null 2>&1; then
+    exit 0
+fi
 summary=$(ctest --test-dir "$build_dir" 2>/dev/null | grep -E 'tests passed' | tail -1 || true)
-[ -z "$summary" ] && exit 0
+if [ -z "$summary" ]; then
+    exit 0
+fi
 case "$summary" in
     *"0 tests failed"*) echo "run-tests hook: ✓ $summary" ;;
     *) echo "run-tests hook: ✗ $summary (run 'ctest --test-dir build' for details)" ;;
 esac
 ```
 
-- It stays **silent until you've configured the build** (`build/` exists), so
-  it never nags on a fresh clone.
-- It reports `✓` when everything passes and `✗` otherwise — a passive safety
-  net that tells you the moment a change breaks a test.
+- **The guard** `if [ ! -d "$build_dir" ] || ! command -v ctest …; then exit 0; fi`
+  bails out if there's no `build/` directory **or** no `ctest` on PATH — so the
+  hook stays silent on a fresh, unbuilt clone instead of erroring.
+- **The summary line** `ctest … | grep -E 'tests passed' | tail -1` keeps only
+  ctest's one-line tally (e.g. `100% tests passed, 0 tests failed out of 13`);
+  `|| true` keeps a failing run from aborting under `set -e`, and the following
+  `[ -z "$summary" ]` exits quietly if the build registers no tests yet.
+- **The verdict** — the `case` prints `run-tests hook: ✓ $summary` when the tally
+  contains `0 tests failed`, otherwise `run-tests hook: ✗ $summary` with a hint
+  to rerun `ctest`.
 
 **Want it to *block* instead of inform?** A `Stop` hook that exits non-zero (or
 prints `{"decision": "block", "reason": "..."}` on stdout) tells Claude it is
 **not** done — that's how you enforce "tests must pass before you stop". We keep
 ours advisory so a live workshop session never gets stuck in a fix-tests loop;
 flip it to blocking when you want a hard gate.
+
+## Try the second hook
+
+Build the project once (`cmake --build build`), then ask Claude anything. When
+the turn finishes, the `Stop` hook runs the suite and an advisory line appears in
+the transcript:
+
+```
+run-tests hook: ✓ 100% tests passed, 0 tests failed out of 13
+```
+
+Before the first build the hook stays silent — that's the guard doing its job.
 
 ## Hook types: command, prompt, agent
 

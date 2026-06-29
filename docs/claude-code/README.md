@@ -17,7 +17,7 @@ go from simplest to most advanced:
 | 3 | [MCP](03-mcp.md) | Connecting Claude to external tools and data sources | `.mcp.json` |
 | 4 | [Plugins](04-plugins.md) | Packaging commands/skills/hooks so a whole team can share them | `plugins/2048-dev/` + `.claude-plugin/marketplace.json` |
 | 5 | [Subagents](05-agents.md) | Delegating a self-contained task to an isolated context with its own tools and persona | `.claude/agents/` + `plugins/2048-dev/agents/` |
-| 6 | [Workflows](06-workflows.md) | Orchestrating many agents with deterministic, code-defined control flow | `.claude/workflows/` |
+| 6 | [Workflows](06-workflows.md) | Running several agents in a fixed, repeatable order defined in code | `.claude/workflows/` |
 
 Every guide exists in two languages: `xx-name.md` is English,
 `xx-name.cs.md` is Czech. They have the same content. When you've worked
@@ -69,7 +69,7 @@ Each guide has a detailed "Where it works" section; the summary:
 | MCP (`.mcp.json`) | ✅ | ✅ | ❌ — use claude.ai **Connectors** instead |
 | Plugin (in-repo marketplace) | ✅ | ✅ | ⚠️ — content works, but install via Cowork's plugin management, not project settings |
 | Subagents (`.claude/agents/`) | ✅ | ✅ | ❌ — bundle the agent in a plugin instead |
-| Workflows (`.claude/workflows/`) | ✅ | ✅* | ❌* — local orchestration; *verify per build |
+| Workflows (`.claude/workflows/`) | ✅ | ✅* | ❌* — local orchestration; *Desktop/Cowork support depends on your build — confirm in your version |
 
 Why: the CLI and the Desktop **Code tab** run the same engine and share all
 project configuration — the Desktop just adds a one-time project trust

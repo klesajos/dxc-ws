@@ -99,7 +99,7 @@ Build the project and run the tests:
     {
       "name": "2048-dev",
       "source": "./plugins/2048-dev",
-      "description": "Dev workflow commands for the 2048 workshop project"
+      "description": "Dev workflow skill (build-test) and the game-explorer agent for the 2048 workshop project"
     }
   ]
 }
@@ -147,7 +147,9 @@ Together: clone the repo → open Claude Code → accept one prompt →
 2. **Write the manifest** `plugins/my-plugin/.claude-plugin/plugin.json` —
    copy the Layer 2 example, change `name` and `description`.
 3. **Add a skill** `plugins/my-plugin/skills/hello/SKILL.md` — frontmatter with
-   `name` + `description`, body with the instructions (see Layer 1).
+   `name` + `description`, body with the instructions (see Layer 1). Add
+   `disable-model-invocation: true` if you want it manual-only like build-test
+   (see Layer 1).
 4. **List it in the marketplace** — add an entry to the `plugins` array in
    `.claude-plugin/marketplace.json` with `source: "./plugins/my-plugin"`.
 5. **Validate** — Claude Code ships a checker:
@@ -160,7 +162,7 @@ Together: clone the repo → open Claude Code → accept one prompt →
    /plugin marketplace add ./
    /plugin install my-plugin@dxc-ws
    ```
-   Then type `/my-plugin:hello` to run your command.
+   Then type `/my-plugin:hello` to run your **skill**.
 7. **Enable it for everyone** — add `"my-plugin@dxc-ws": true` to
    `enabledPlugins` in `.claude/settings.json`.
 8. **Commit everything and push.**
@@ -215,7 +217,7 @@ Cowork's plugin management instead.
 1. Open Claude Code in a fresh clone → accept the marketplace trust prompt.
 2. Type `/2048-dev:` — `build-test` autocompletes.
 3. Run it. Claude configures, builds, runs `ctest`, and reports a pass/fail
-   summary without fixing anything — exactly what the command file asked.
+   summary without fixing anything — exactly what the **skill file** asked.
 
 ## Troubleshooting
 
