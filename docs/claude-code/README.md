@@ -22,14 +22,17 @@ go from simplest to most advanced:
 Every guide exists in two languages: `xx-name.md` is English,
 `xx-name.cs.md` is Czech. They have the same content. When you've worked
 through all six, the [exercise catalog](exercises.md) gives you one game
-feature to build per mechanism.
+feature to build per mechanism — and the [cheat-sheet](cheatsheet.md) is a
+quick reference for the day-to-day flags, slash commands and shortcuts.
 
 ## Before you start
 
 You need:
 
-1. **Claude Code installed** — see [code.claude.com](https://code.claude.com)
-   for install instructions, then run `claude` in a terminal to verify.
+1. **Claude Code installed** — follow the official
+   [setup guide](https://code.claude.com/docs/en/setup) (system requirements and
+   install methods) or the [quickstart](https://code.claude.com/docs/en/quickstart)
+   for a guided first session, then run `claude --version` to verify.
 2. **This repo cloned** — `git clone https://github.com/klesajos/dxc-ws`
 3. **A terminal opened in the repo folder** — all examples assume your
    working directory is the repo root (the folder containing `CMakeLists.txt`).
@@ -73,6 +76,11 @@ project configuration — the Desktop just adds a one-time project trust
 dialog. **Cowork** runs tasks in its own sandboxed VM and does not load
 project-scoped `.claude/` config; it has its own equivalents (Connectors
 for MCP, its own plugin install flow).
+
+Reference: the [Desktop quickstart](https://code.claude.com/docs/en/desktop-quickstart)
+states the Code tab "runs the same engine as the CLI ... they share configuration
+(CLAUDE.md files, MCP servers, hooks, skills, and settings)." Each numbered guide
+below has its own "Where it works" section linking the relevant official docs.
 
 ## Which mechanism should I use when?
 

@@ -52,7 +52,7 @@ repo naklonuje (po jednorázovém schválení — viz bezpečnostní poznámka n
 - `"type": "stdio"` — Claude Code **spustí program na tvém stroji**
   a komunikuje s ním přes standardní vstup/výstup. Nejběžnější typ pro
   lokální nástroje.
-- `"command": "npx"` — program ke spuštění. `npx` je součást Node.js
+- `"command": "npx"` — program ke spuštění. `npx` je součástí Node.js
   a spouští npm balíček bez trvalé instalace.
 - `"args": ["-y", "@modelcontextprotocol/server-memory"]` — argumenty
   příkazu, přesně jako bys v terminálu napsal

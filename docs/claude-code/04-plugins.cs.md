@@ -14,7 +14,7 @@ funguje pro *jeden* projekt. Plugin je další krok: stejný obsah zabalený
 tak, aby šel sdílet mezi mnoha repy a týmy.
 
 Tahle ukázka je nejmenší možná sestava: repo je **samo sobě marketplacem**
-a nabízí **jeden plugin** s **jedním příkazem**.
+a nabízí **jeden plugin**, který balí **jeden skill** (a od Ukázky 5 i agenta).
 
 ## Z čeho se to skládá
 
@@ -22,23 +22,32 @@ a nabízí **jeden plugin** s **jedním příkazem**.
 .claude-plugin/marketplace.json      ← katalog marketplace (kořen repa)
 plugins/2048-dev/                    ← samotný plugin
   .claude-plugin/plugin.json         ← manifest pluginu (název, verze, ...)
-  commands/build-test.md             ← jeden slash příkaz
+  skills/build-test/SKILL.md         ← jeden zabalený skill (býval příkaz)
 .claude/settings.json                ← automaticky registruje + zapíná plugin
 ```
 
-Tři vrstvy zevnitř ven: **příkaz** žije v **pluginu**, ten je uvedený
+Tři vrstvy zevnitř ven: **skill** žije v **pluginu**, ten je uvedený
 v **marketplace**, na který ukazuje projektové **nastavení**.
 
-## Vrstva 1: příkaz (`plugins/2048-dev/commands/build-test.md`)
+## Vrstva 1: skill (`plugins/2048-dev/skills/build-test/SKILL.md`)
 
-Slash příkaz je Markdown soubor. Název souboru = název příkazu
-(`build-test.md` → `/2048-dev:build-test`; prefix je název pluginu).
+Tenhle plugin balí **skill**. Název složky skillu = název příkazu
+(`skills/build-test/` → `/2048-dev:build-test`; prefix je název pluginu).
+
+> **Proč skill, a ne příkaz?** Vlastní slash příkazy se **sloučily do skills** —
+> `commands/build-test.md` i `skills/build-test/SKILL.md` vytvoří
+> `/2048-dev:build-test`. Legacy forma `commands/` dál funguje, ale skills jsou
+> cesta dopředu (viz [tahák](cheatsheet.cs.md)). Tenhle plugin dodává skill.
 
 ```markdown
 ---
+name: build-test
 description: Configure, build, and run the full test suite, then summarize results
 allowed-tools: Bash(cmake:*), Bash(ctest:*)
+disable-model-invocation: true
 ---
+
+# Build and test
 
 Build the project and run the tests:
 
@@ -46,20 +55,25 @@ Build the project and run the tests:
 ...
 ```
 
+- `name` — identifikátor skillu; s prefixem pluginu je to `/2048-dev:build-test`.
 - `description` — zobrazí se v našeptávači příkazů.
-- `allowed-tools` — předschválí nástroje, které příkaz potřebuje:
-  `Bash(cmake:*)` znamená „jakýkoli `cmake` příkaz" smí běžet bez ptaní.
-  Vymezuj úzce — *konkrétní* nástroje, ne „všechno".
-- Tělo je **prompt**, který Claude vykoná, když příkaz napíšeš. Piš ho jako
-  přesné zadání práce: očíslované kroky a co má být ve výstupu.
+- `allowed-tools` — předschválí nástroje, které skill potřebuje: `Bash(cmake:*)`
+  znamená „jakýkoli `cmake` příkaz" smí běžet bez ptaní. Vymezuj úzce —
+  *konkrétní* nástroje, ne „všechno".
+- `disable-model-invocation: true` — **ten jeden flag, díky kterému se skill
+  chová jako starý příkaz**: Claude ho sám nespustí, jen ty přes
+  `/2048-dev:build-test`. Vynech ho a Claude může skill vyvolat i sám, když tvůj
+  požadavek odpovídá `description`.
+- Tělo je **prompt**, který Claude vykoná, když ho spustíš. Piš ho jako přesné
+  zadání práce: očíslované kroky a co má být ve výstupu.
 
 ## Vrstva 2: manifest pluginu (`plugins/2048-dev/.claude-plugin/plugin.json`)
 
 ```json
 {
   "name": "2048-dev",
-  "description": "Dev workflow commands for the 2048 workshop project",
-  "version": "1.0.0",
+  "description": "Dev workflow skill (build-test) and the game-explorer agent for the 2048 workshop project",
+  "version": "1.2.0",
   "author": { "name": "Josef Klesa", "url": "https://github.com/klesajos" }
 }
 ```
@@ -126,12 +140,12 @@ Dohromady: naklonuj repo → otevři Claude Code → potvrď jeden dialog →
 
 1. **Vytvoř kostru pluginu:**
    ```bash
-   mkdir -p plugins/muj-plugin/.claude-plugin plugins/muj-plugin/commands
+   mkdir -p plugins/muj-plugin/.claude-plugin plugins/muj-plugin/skills/hello
    ```
 2. **Napiš manifest** `plugins/muj-plugin/.claude-plugin/plugin.json` —
    zkopíruj příklad z Vrstvy 2, změň `name` a `description`.
-3. **Přidej příkaz** `plugins/muj-plugin/commands/hello.md` — frontmatter
-   s `description`, tělo s instrukcemi (viz Vrstva 1).
+3. **Přidej skill** `plugins/muj-plugin/skills/hello/SKILL.md` — frontmatter
+   s `name` + `description`, tělo s instrukcemi (viz Vrstva 1).
 4. **Uveď ho v marketplace** — přidej položku do pole `plugins`
    v `.claude-plugin/marketplace.json` se `source: "./plugins/muj-plugin"`.
 5. **Zvaliduj** — Claude Code má vestavěnou kontrolu:
@@ -188,7 +202,7 @@ a [dokumentace marketplace](https://code.claude.com/docs/en/plugin-marketplaces)
 | **Claude Desktop — záložka Code** | ✅ Ano | Stejně jako CLI: otevři projekt, potvrď dialog důvěry, `/2048-dev:build-test` se objeví |
 | **Cowork** (v Desktop aplikaci) | ⚠️ Částečně | Cowork **nečte** in-repo marketplace ani projektové nastavení. Má ale vlastní systém pluginů: nainstaluj plugin přes správu pluginů v Coworku (nebo nahraj zabalený `.plugin` soubor) a jeho příkazy/skills pak v Cowork úlohách fungují. **Hooks** v pluginu závislé na lokálních nástrojích se v sandboxu můžou chovat jinak |
 
-Ze čtyř mechanismů jsou tedy pluginy do Coworku nejpřenositelnější —
+Ze šesti mechanismů jsou tedy pluginy do Coworku nejpřenositelnější —
 *obsah* tam funguje, nefunguje jen in-repo *distribuční kanál*
 (`extraKnownMarketplaces` v projektovém nastavení). Pro tým na Coworku
 publikuj plugin do sdíleného marketplace a instaluj ho přes správu
@@ -208,5 +222,5 @@ pluginů v Coworku.
   zkontroluj v `/plugin` → „Manage plugins", že je plugin zapnutý.
 - **„Marketplace not trusted"** → odmítl jsi dialog; přidej ručně přes
   `/plugin marketplace add ./`.
-- **Změnil jsi soubor příkazu a nic se neděje** → spusť novou session;
+- **Změnil jsi soubor skillu a nic se neděje** → spusť novou session;
   obsah pluginů se načítá při startu session.

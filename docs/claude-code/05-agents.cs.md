@@ -170,7 +170,7 @@ Spusť v čerstvé session `claude` v kořeni repa:
 |-----------|----------|-----------|
 | **Claude Code CLI** (terminál) | ✅ Ano | Agenti v `.claude/agents/` se objeví automaticky při spuštění `claude` v repu |
 | **Desktop — záložka Code** | ✅ Ano | Stejný engine jako CLI; projektové `.claude/agents/` se načtou po jednorázovém dialogu důvěry |
-| **Cowork** (v Desktop appce) | ⚠️ Přes plugin | Cowork projektové `.claude/agents/` **nenačítá**. Ale agent **zabalený v pluginu** (jako `game-explorer`) jede s pluginem, když ho v Coworku nainstaluješ — takže pro přenositelnost zabal agenta do pluginu |
+| **Cowork** (v Desktop aplikaci) | ⚠️ Přes plugin | Cowork projektové `.claude/agents/` **nenačítá**. Ale agent **zabalený v pluginu** (jako `game-explorer`) jede s pluginem, když ho v Coworku nainstaluješ — takže pro přenositelnost zabal agenta do pluginu |
 
 Je to stejný vzorec jako u Ukázky 1: projektová `.claude/` konfigurace do Coworku
 nedosáhne, ale obsah zabalený v pluginu ano. `game-explorer` je přenositelný

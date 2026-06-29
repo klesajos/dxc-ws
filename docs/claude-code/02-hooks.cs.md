@@ -27,6 +27,10 @@ Jsou v tom dva soubory:
 .claude/hooks/format-cpp.sh  ← skript, který říká, CO se má udělat
 ```
 
+Tenhle průvodce projde formátovací hook celý, pak přidá **druhý hook** na jinou
+událost — `Stop` hook, který spustí testy, když Claude dokončí odpověď — a
+vysvětlí tři **typy** hooků.
+
 ## Část 1: registrace (`.claude/settings.json`) řádek po řádku
 
 ```json
@@ -162,6 +166,77 @@ Požádej Clauda, ať přidá metodu do `src/board.cpp` a formátováním se
 nezabývá. Po úpravě spusť `git diff` — kód už je zformátovaný a v přepisu
 se objeví řádek `format-cpp hook: formatted board.cpp`.
 
+## Druhý hook: brána na testy (událost `Stop`)
+
+Formátovací hook reaguje na **nástroj** (`Edit`/`Write`). Hooks ale umí
+reagovat i na **životní cyklus session**. Tohle repo má druhý hook na události
+`Stop` — která nastane jednou, když Claude dokončí svou odpověď — aby spustil
+testovací sadu a oznámil, jestli je strom stále zelený.
+
+Jeho registrace sedí hned vedle prvního hooku v `.claude/settings.json`. Všimni
+si, že tu **není `matcher`**: `Stop` není o nástroji, takže není co filtrovat.
+
+```json
+"Stop": [
+  {
+    "hooks": [
+      { "type": "command",
+        "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/run-tests.sh" }
+    ]
+  }
+]
+```
+
+Skript (`.claude/hooks/run-tests.sh`) je záměrně **informativní**: spustí
+`ctest`, vypíše jeden řádek a vždycky `exit 0` — takže tě nikdy nepřeruší.
+
+```bash
+cat >/dev/null                         # vyprázdni JSON události Stop, který nepotřebujeme
+build_dir="${CLAUDE_PROJECT_DIR:-$(pwd)}/build"
+[ -d "$build_dir" ] && command -v ctest >/dev/null 2>&1 || exit 0   # ticho, dokud není sestaveno
+summary=$(ctest --test-dir "$build_dir" 2>/dev/null | grep -E 'tests passed' | tail -1 || true)
+[ -z "$summary" ] && exit 0
+case "$summary" in
+    *"0 tests failed"*) echo "run-tests hook: ✓ $summary" ;;
+    *) echo "run-tests hook: ✗ $summary (run 'ctest --test-dir build' for details)" ;;
+esac
+```
+
+- Zůstává **potichu, dokud nemáš sestavený build** (existuje `build/`), takže
+  na čerstvém klonu nikdy neotravuje.
+- Hlásí `✓`, když všechno projde, a `✗` jinak — pasivní záchranná síť, která ti
+  hned řekne, že nějaká změna rozbila test.
+
+**Chceš, aby spíš *blokoval* než informoval?** `Stop` hook, který skončí
+nenulovým kódem (nebo vypíše `{"decision": "block", "reason": "..."}` na stdout),
+říká Claudovi, že **ještě není** hotovo — tak vynutíš „testy musí projít, než
+skončíš". My ten náš necháváme informativní, aby se živá workshopová session
+nezasekla v opravovací smyčce; přepni ho na blokující, když chceš tvrdou bránu.
+
+## Typy hooků: command, prompt, agent
+
+Oba hooky výše používají `"type": "command"` — shellový skript. To je
+nejběžnější typ, ale ne jediný. Handler může být jeden ze tří typů a směňuje
+determinismus za úsudek:
+
+| Typ | Co běží | Na co se hodí |
+|-----|---------|---------------|
+| `command` | Shellový skript (naše dva hooky) | Deterministické, rychlé kontroly — formát, lint, spuštění testů, zablokování zakázaného příkazu |
+| `prompt` | Jednokolové volání malého modelu Claude | Rychlý úsudek — „je commit message výstižná?" — vrací rozhodnutí ano/ne |
+| `agent` | Vícekolový subagent s přístupem k nástrojům (`Read`, `Grep`, …) | Hloubková kontrola — „přečti diff a ověř, že nepřibyla žádná tajemství" — než se pokračuje |
+
+`prompt` hook se registruje s textem k vyhodnocení místo příkazu:
+
+```json
+{ "type": "prompt",
+  "prompt": "Přidává staged diff test ke každé nové veřejné metodě? Odpověz ano nebo ne." }
+```
+
+Základní pravidlo: sáhni nejdřív po `command` (je zdarma a okamžitý), po `prompt`,
+když kontrola potřebuje porozumění jazyku, a po `agent` jen tehdy, když se
+kontrola sama musí prohrabat kódem. Tohle repo dodává `command` hooky; o dalších
+dvou stačí vědět, že existují.
+
 ## Volitelné parametry
 
 Hook handler umí víc než `type` a `command`. Nejužitečnější volitelná pole:
@@ -195,7 +270,7 @@ na celý životní cyklus session. Které stojí za to znát nejdřív:
 | **Cowork** (v Desktop aplikaci) | ❌ Ne | Sandboxované VM Coworku projektové hooks z `.claude/settings.json` nespouští. Přímá náhrada není — nejblíž jsou hooks zabalené v nainstalovaném pluginu |
 
 Poznámka pro workshop: tohle je nejvýraznější platformní rozdíl ze všech
-čtyř ukázek. Hooks jsou *lokální automatizace* — pokud na nich tvůj workflow
+šesti ukázek. Hooks jsou *lokální automatizace* — pokud na nich tvůj workflow
 stojí (formátování, lint brány), pracuj v CLI nebo v záložce Code v Desktopu,
 ne v Coworku.
 

@@ -1,9 +1,9 @@
 #include "input.hpp"
 
-#include <cstdio>
-
 #include <termios.h>
 #include <unistd.h>
+
+#include <cstdio>
 
 namespace g2048 {
 

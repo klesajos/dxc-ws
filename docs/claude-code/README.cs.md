@@ -23,14 +23,17 @@ nejjednodušší po nejpokročilejší:
 Každý návod existuje ve dvou jazycích: `xx-nazev.md` je anglicky,
 `xx-nazev.cs.md` česky. Obsah je stejný. Až projdeš všech šest, [katalog
 cvičení](exercises.cs.md) ti dá jednu herní featuru k postavení na každý
-mechanismus.
+mechanismus — a [tahák](cheatsheet.cs.md) je rychlá reference na každodenní
+přepínače, slash příkazy a zkratky.
 
 ## Než začneš
 
 Potřebuješ:
 
-1. **Nainstalovaný Claude Code** — návod na [code.claude.com](https://code.claude.com),
-   ověř spuštěním `claude` v terminálu.
+1. **Nainstalovaný Claude Code** — řiď se oficiálním
+   [návodem na instalaci](https://code.claude.com/docs/en/setup) (systémové
+   požadavky a způsoby instalace) nebo [quickstartem](https://code.claude.com/docs/en/quickstart),
+   který tě provede první session; pak ověř příkazem `claude --version`.
 2. **Naklonované tohle repo** — `git clone https://github.com/klesajos/dxc-ws`
 3. **Terminál otevřený ve složce repa** — všechny ukázky předpokládají, že
    pracovní adresář je kořen repa (složka s `CMakeLists.txt`).
@@ -75,6 +78,12 @@ veškerou projektovou konfiguraci — Desktop jen přidává jednorázový dialo
 důvěry projektu. **Cowork** pouští úlohy ve vlastním sandboxovaném VM
 a projektovou konfiguraci `.claude/` nenačítá; má vlastní ekvivalenty
 (Konektory pro MCP, vlastní instalaci pluginů).
+
+Reference: [Desktop quickstart](https://code.claude.com/docs/en/desktop-quickstart)
+uvádí, že záložka Code běží na „stejném enginu jako CLI … sdílejí konfiguraci
+(soubory CLAUDE.md, MCP servery, hooks, skills a nastavení)." Každý číslovaný
+průvodce níže má vlastní sekci „Kde to funguje" s odkazy na příslušnou
+oficiální dokumentaci.
 
 ## Kdy použít který mechanismus?
 
