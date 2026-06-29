@@ -20,7 +20,7 @@ description: |
   assistant: "Delegating to cpp-reviewer to check the diff against the project conventions in CLAUDE.MD."
   <commentary>The agent checks naming, const-correctness, ownership and off-by-ones — the things .clang-format can't see.</commentary>
   </example>
-tools: Read, Grep, Glob, Bash
+tools: Read, Grep, Glob, Bash(git diff:*), Bash(git status:*), Bash(git log:*)
 model: inherit
 color: blue
 ---

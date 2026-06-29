@@ -58,7 +58,7 @@ artifact.
 The workflow lives at `.claude/workflows/test-coverage-audit.js`. Saved
 workflows in `.claude/workflows/` are auto-discovered and become slash commands.
 
-**1. The `meta` block must be the first statement.** It names the workflow (this
+**1. The `meta` block must be the first statement** (a file-header `//` comment before it is fine). It names the workflow (this
 becomes `/test-coverage-audit`) and describes its phases:
 
 ```js
@@ -203,7 +203,7 @@ Per-`agent()` options you'll reach for most:
 
 Orchestration primitives: `phase()`, `parallel()` (barrier), `pipeline()`
 (per-item chains, no barrier), `log()`. Full reference:
-[official documentation](https://code.claude.com/docs/en/claude-code-on-the-web).
+[official documentation](https://code.claude.com/docs/en/workflows).
 
 ## Where it works: CLI, Desktop app, Cowork
 
@@ -216,8 +216,8 @@ Orchestration primitives: `phase()`, `parallel()` (barrier), `pipeline()`
 ## Troubleshooting
 
 - **`/test-coverage-audit` doesn't appear** → the file must be in
-  `.claude/workflows/` and start with `export const meta = { ... }` as its first
-  statement; restart the session.
+  `.claude/workflows/` and have `export const meta = { ... }` as its first
+  statement (a preceding `//` comment header is fine); restart the session.
 - **An agent errors with "unknown agent type"** → your build may not expose the
   `Explore` type; remove `agentType: 'Explore'` and instead instruct the agent to
   read only (less strongly enforced, but it runs).

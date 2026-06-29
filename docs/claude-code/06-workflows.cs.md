@@ -59,7 +59,7 @@ je zpráva předvídatelná — což z ní dělá dobrý učební artefakt.
 Workflow žije v `.claude/workflows/test-coverage-audit.js`. Uložená workflow
 v `.claude/workflows/` se auto-objeví a stanou se slash příkazy.
 
-**1. Blok `meta` musí být první příkaz.** Pojmenuje workflow (tím vznikne
+**1. Blok `meta` musí být první příkaz** (komentář `//` v hlavičce souboru před ním nevadí). Pojmenuje workflow (tím vznikne
 `/test-coverage-audit`) a popíše jeho fáze:
 
 ```js
@@ -203,7 +203,7 @@ Volby `agent()`, po kterých sáhneš nejčastěji:
 
 Orchestrační primitiva: `phase()`, `parallel()` (bariéra), `pipeline()` (řetězce
 po položkách, bez bariéry), `log()`. Úplná reference:
-[oficiální dokumentace](https://code.claude.com/docs/en/claude-code-on-the-web).
+[oficiální dokumentace](https://code.claude.com/docs/en/workflows).
 
 ## Kde to funguje: CLI, Desktop, Cowork
 
@@ -216,7 +216,7 @@ po položkách, bez bariéry), `log()`. Úplná reference:
 ## Řešení problémů
 
 - **`/test-coverage-audit` se neobjeví** → soubor musí být v `.claude/workflows/`
-  a začínat `export const meta = { ... }` jako prvním příkazem; restartuj session.
+  a mít `export const meta = { ... }` jako první příkaz (komentář `//` v hlavičce před ním nevadí); restartuj session.
 - **Agent spadne s „unknown agent type"** → tvůj build možná typ `Explore`
   nevystavuje; odeber `agentType: 'Explore'` a místo toho agentovi v promptu
   napiš, ať jen čte (slabší vynucení, ale poběží).

@@ -57,7 +57,7 @@ description: |
   assistant: "I'll run the cpp-reviewer agent — it reads the diff and reports..."
   <commentary>Read-only semantic review is exactly this agent's role...</commentary>
   </example>
-tools: Read, Grep, Glob, Bash
+tools: Read, Grep, Glob, Bash(git diff:*), Bash(git status:*), Bash(git log:*)
 model: inherit
 color: blue
 ---
@@ -75,9 +75,11 @@ Co která část dělá:
   agentovi delegovat sám od sebe*. Napiš ho jako spouštěč a přidej bloky
   `<example>` / `<commentary>`: každý příklad je miniscénář učící automatické
   delegování.
-- `tools` — **seznam povolených nástrojů.** `Read, Grep, Glob, Bash` a **žádný
-  `Edit`/`Write`** znamená, že agent může číst repo a spustit `git diff`, ale
-  nemůže změnit ani jeden soubor. Vynech pole úplně = zdědí *všechny* nástroje;
+- `tools` — **seznam povolených nástrojů.** `Read, Grep, Glob` plus **omezený**
+  `Bash` (`Bash(git diff:*)`, `Bash(git status:*)`, `Bash(git log:*)`) a **žádný
+  `Edit`/`Write`** znamená, že agent může číst repo a prohlédnout diff, ale nemůže
+  spustit libovolný příkaz ani změnit jediný soubor. Omezení `Bash(cmd:*)` je
+  přísnější než holý `Bash`. Vynech pole úplně = zdědí *všechny* nástroje;
   vypiš ho = zamkneš agenta. (Lze taky odečítat přes `disallowedTools`.)
 - `model: inherit` — stejný model jako konverzace, která agenta spustila.
 - `color` — barva v UI agentů.
@@ -88,8 +90,9 @@ Zbylí dva přidávají po jedné myšlence:
 
 - `board-test-writer.md` má ve frontmatteru **`skills: board-tests`**. To
   **přednačte skill z Ukázky 1** do agenta, takže zdědí testovací konvence, aniž
-  by je kopíroval. Ukázka skládání vrstvy na vrstvu. Navíc má `Edit, Write, Bash`,
-  takže opravdu může přidat `TEST_CASE` a spustit `ctest`.
+  by je kopíroval. Ukázka skládání vrstvy na vrstvu. Má celou sadu
+  `Read, Edit, Write, Grep, Glob, Bash` — čtecí nástroje plus `Edit`/`Write` na
+  přidání `TEST_CASE` a `Bash` na spuštění `ctest`.
 - `plugins/2048-dev/agents/game-explorer.md` žije **uvnitř pluginu**, ve složce
   `agents/` **vedle** `commands/` (viz Ukázka 4, která už `agents/` uvádí jako
   platnou složku pluginu). Claude Code ho auto-objeví a pojmenuje

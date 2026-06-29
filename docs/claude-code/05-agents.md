@@ -58,7 +58,7 @@ description: |
   assistant: "I'll run the cpp-reviewer agent — it reads the diff and reports..."
   <commentary>Read-only semantic review is exactly this agent's role...</commentary>
   </example>
-tools: Read, Grep, Glob, Bash
+tools: Read, Grep, Glob, Bash(git diff:*), Bash(git status:*), Bash(git log:*)
 model: inherit
 color: blue
 ---
@@ -76,10 +76,13 @@ What each part does:
   *when to delegate to this agent on its own*. Write it as a trigger, and add
   `<example>` / `<commentary>` blocks: each example is a mini scenario that teaches
   auto-delegation ("when the user says *review my changes*, use me").
-- `tools` — the **allowlist**. `Read, Grep, Glob, Bash` and **no `Edit`/`Write`**
-  means this agent can read the repo and run `git diff`, but cannot change a single
-  file. Omit the field entirely to inherit *all* tools; list it to lock the agent
-  down. (You can also use `disallowedTools` to subtract from the default set.)
+- `tools` — the **allowlist**. `Read, Grep, Glob` plus a **scoped** `Bash`
+  (`Bash(git diff:*)`, `Bash(git status:*)`, `Bash(git log:*)`) and **no
+  `Edit`/`Write`** means this agent can read the repo and inspect the diff, but
+  cannot run an arbitrary command or change a single file. Scoping `Bash(cmd:*)`
+  is tighter than granting bare `Bash`. Omit the field entirely to inherit *all*
+  tools; list it to lock the agent down. (You can also use `disallowedTools` to
+  subtract from the default set.)
 - `model: inherit` — use the same model as the conversation that spawned it.
 - `color` — a display colour in the agents UI.
 - Everything **below** the frontmatter is the agent's **system prompt** — its
@@ -89,8 +92,9 @@ The other two add one idea each:
 
 - `board-test-writer.md` carries **`skills: board-tests`** in its frontmatter.
   That **preloads the Example 1 skill** into the agent, so it inherits the test
-  conventions without copying them. Showcases composing layer on layer. It also
-  lists `Edit, Write, Bash`, so it can actually add a `TEST_CASE` and run `ctest`.
+  conventions without copying them. Showcases composing layer on layer. It lists
+  the full `Read, Edit, Write, Grep, Glob, Bash` set — the read tools plus
+  `Edit`/`Write` to add a `TEST_CASE` and `Bash` to run `ctest`.
 - `plugins/2048-dev/agents/game-explorer.md` lives **inside the plugin**, in an
   `agents/` folder **next to** `commands/` (see Example 4, which already lists
   `agents/` as a valid plugin folder). Claude Code auto-discovers it and namespaces
