@@ -1,3 +1,6 @@
 BasedOnStyle: Google
 ColumnLimit: 88
 IndentWidth: 4
+# Keep access specifiers at column 0. Google ships -1 (tuned for IndentWidth 2);
+# with IndentWidth 4 that would indent them 3 spaces, so pin to -4.
+AccessModifierOffset: -4

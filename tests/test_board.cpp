@@ -53,50 +53,33 @@ TEST_CASE("only the matching neighbours merge") {
 // ---------------------------------------------------------------------------
 
 TEST_CASE("move left collapses each row") {
-    Board board(Grid{{{2, 2, 0, 0},
-                       {0, 4, 4, 0},
-                       {0, 0, 0, 0},
-                       {8, 0, 8, 0}}});
+    Board board(Grid{{{2, 2, 0, 0}, {0, 4, 4, 0}, {0, 0, 0, 0}, {8, 0, 8, 0}}});
     const bool changed = board.move(Direction::Left);
     REQUIRE(changed);
-    REQUIRE(board.grid() == Grid{{{4, 0, 0, 0},
-                                  {8, 0, 0, 0},
-                                  {0, 0, 0, 0},
-                                  {16, 0, 0, 0}}});
+    REQUIRE(board.grid() ==
+            Grid{{{4, 0, 0, 0}, {8, 0, 0, 0}, {0, 0, 0, 0}, {16, 0, 0, 0}}});
 }
 
 TEST_CASE("move right collapses towards the right edge") {
-    Board board(Grid{{{2, 2, 0, 0},
-                       {0, 0, 0, 0},
-                       {0, 0, 0, 0},
-                       {0, 0, 0, 0}}});
+    Board board(Grid{{{2, 2, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}}});
     board.move(Direction::Right);
     REQUIRE(board.at(0, 3) == 4);
 }
 
 TEST_CASE("move up collapses columns") {
-    Board board(Grid{{{2, 0, 0, 0},
-                       {2, 0, 0, 0},
-                       {0, 0, 0, 0},
-                       {0, 0, 0, 0}}});
+    Board board(Grid{{{2, 0, 0, 0}, {2, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}}});
     board.move(Direction::Up);
     REQUIRE(board.at(0, 0) == 4);
 }
 
 TEST_CASE("a move that changes nothing returns false") {
-    Board board(Grid{{{2, 4, 2, 4},
-                       {4, 2, 4, 2},
-                       {2, 4, 2, 4},
-                       {4, 2, 4, 2}}});
+    Board board(Grid{{{2, 4, 2, 4}, {4, 2, 4, 2}, {2, 4, 2, 4}, {4, 2, 4, 2}}});
     REQUIRE_FALSE(board.move(Direction::Left));
 }
 
 TEST_CASE("score accumulates across moves") {
-    Board board(Grid{{{2, 2, 0, 0},
-                       {0, 0, 0, 0},
-                       {0, 0, 0, 0},
-                       {0, 0, 0, 0}}});
-    board.move(Direction::Left);   // +4
+    Board board(Grid{{{2, 2, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}}});
+    board.move(Direction::Left);  // +4
     REQUIRE(board.score() == 4);
 }
 
@@ -105,26 +88,17 @@ TEST_CASE("score accumulates across moves") {
 // ---------------------------------------------------------------------------
 
 TEST_CASE("hasWon triggers at 2048") {
-    Board board(Grid{{{2048, 0, 0, 0},
-                      {0, 0, 0, 0},
-                      {0, 0, 0, 0},
-                      {0, 0, 0, 0}}});
+    Board board(Grid{{{2048, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}}});
     REQUIRE(board.hasWon());
 }
 
 TEST_CASE("a board with an empty cell is not game over") {
-    Board board(Grid{{{2, 4, 2, 4},
-                      {4, 2, 4, 2},
-                      {2, 4, 2, 4},
-                      {4, 2, 4, 0}}});
+    Board board(Grid{{{2, 4, 2, 4}, {4, 2, 4, 2}, {2, 4, 2, 4}, {4, 2, 4, 0}}});
     REQUIRE_FALSE(board.isGameOver());
 }
 
 TEST_CASE("a fully locked board is game over") {
-    Board board(Grid{{{2, 4, 2, 4},
-                      {4, 2, 4, 2},
-                      {2, 4, 2, 4},
-                      {4, 2, 4, 2}}});
+    Board board(Grid{{{2, 4, 2, 4}, {4, 2, 4, 2}, {2, 4, 2, 4}, {4, 2, 4, 2}}});
     REQUIRE(board.isGameOver());
 }
 
