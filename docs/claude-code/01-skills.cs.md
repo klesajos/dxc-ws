@@ -78,8 +78,10 @@ se Claude řídí, jakmile je skill aktivní. U nás: konvence testů
    co dělat, které soubory/API použít, jak ověřit výsledek.>
    ```
 
-3. **Restartuj Claude Code** (nebo začni novou session), aby nový skill
-   našel. Skills se načítají při startu session.
+3. **Restart není potřeba.** Claude Code sleduje `.claude/skills/` a nový
+   nebo upravený skill načte ještě v běžící session. Jediná výjimka: pokud
+   složka `.claude/skills/` při startu session vůbec neexistovala, spusť
+   jednou `/reload-skills`.
 
 4. **Otestuj ruční spuštění:** napiš `/muj-skill` — tělo skillu se načte
    do konverzace.
@@ -137,7 +139,8 @@ MCP servery, hooks, skills a nastavení)."
 ## Když něco nefunguje
 
 - **`/board-tests` neexistuje** → soubor musí být přesně
-  `.claude/skills/<nazev>/SKILL.md` (velkými `SKILL.md`); restartuj session.
+  `.claude/skills/<nazev>/SKILL.md` (velkými `SKILL.md`). Pokud jsi
+  `.claude/skills/` vytvořil až během session, spusť `/reload-skills`.
 - **Skill se nikdy nespustí automaticky** → tvůj `description` je moc
   vágní. Přepiš ho tak, aby popisoval *situaci uživatele* („Use when
   writing unit tests...") místo obsahu („Informace o testech").

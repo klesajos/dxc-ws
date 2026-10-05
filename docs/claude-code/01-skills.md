@@ -79,8 +79,10 @@ conventions (Arrange-Act-Assert, one behaviour per `TEST_CASE`), the key
    what to do, which files/APIs to use, how to verify the result.>
    ```
 
-3. **Restart Claude Code** (or start a new session) so it picks up the new
-   skill. Skills are discovered at session start.
+3. **No restart needed.** Claude Code watches `.claude/skills/` and picks up
+   a new or edited skill within the current session. One exception: if
+   `.claude/skills/` itself didn't exist when the session started, run
+   `/reload-skills` once.
 
 4. **Test the manual trigger:** type `/my-skill` — the skill's body loads
    into the conversation.
@@ -138,7 +140,8 @@ MCP servers, hooks, skills, and settings)."
 ## Troubleshooting
 
 - **`/board-tests` not found** → the file must be exactly
-  `.claude/skills/<name>/SKILL.md` (uppercase `SKILL.md`); restart the session.
+  `.claude/skills/<name>/SKILL.md` (uppercase `SKILL.md`). If you created
+  `.claude/skills/` during the session, run `/reload-skills`.
 - **Skill never triggers automatically** → your `description` is too vague.
   Rewrite it to describe the *user's situation* ("Use when writing unit
   tests...") rather than the content ("Information about tests").

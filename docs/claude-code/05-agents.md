@@ -146,7 +146,7 @@ skills: board-tests
 ```
 
 **`plugins/2048-dev/agents/game-explorer.md`** lives **inside the plugin**, in an
-`agents/` folder **next to** `commands/` (see Example 4, which already lists
+`agents/` folder **next to** `skills/` (see Example 4, which already lists
 `agents/` as a valid plugin folder). Its **`tools: Read, Grep, Glob`** make it
 read-only with **no `Bash`**, and it has **no `model:` line** at all. The file
 itself says `name: game-explorer`; Claude Code auto-discovers it and namespaces it
@@ -190,10 +190,12 @@ color: cyan
 3. **Decide its powers.** Read-only? List `Read, Grep, Glob` and stop. Needs to
    edit and build? Add `Edit, Write, Bash`. Omit `tools` only if it truly needs
    everything.
-4. **Restart the session — this is the step everyone forgets.** Agents are
-   discovered only at session start; adding `.claude/agents/<name>.md` mid-session
-   and then typing `@agent-<name>` fails with "agent not found" until you start a
-   fresh `claude`.
+4. **Usually no restart needed.** Claude Code watches `.claude/agents/` and
+   picks up a new or edited agent within a few seconds. The exception everyone
+   still trips on: if `.claude/agents/` **didn't exist** when the session
+   started (your first project agent), `@agent-<name>` fails with "agent not
+   found" until you restart `claude`, because the watcher only covers folders
+   that existed at startup.
 5. **Invoke it** three ways: ask in plain language matching the `description`,
    mention `@agent-my-agent`, or run `claude --agent my-agent`.
 6. **Commit it** so everyone who clones the repo gets it:
@@ -228,6 +230,8 @@ Run these in a fresh `claude` session in the repo root:
 | `model` | Model for this agent; `inherit` matches the spawning conversation |
 | `color` | Display colour in the agents UI |
 | `skills` | Preload one or more skills into the agent (comma list or YAML array), e.g. `skills: board-tests` |
+| `background: true` | Always run this agent in the background. Without it, Claude already runs subagents in the background by default and in the foreground only when it needs the result before continuing |
+| `omitClaudeMd: true` | Skip the user, project and local `CLAUDE.md` files to keep the agent's context lean (built-in Explore and Plan already do) |
 | `<example>` / `<commentary>` in `description` | Scenario blocks that teach Claude *when* to auto-delegate to this agent |
 
 Full, current list: [official subagents documentation](https://code.claude.com/docs/en/sub-agents).
@@ -251,8 +255,9 @@ precisely because it lives in the plugin, not in `.claude/agents/`.
   scenarios that trigger it.
 - **Agent edited a file you expected it not to** → it inherited all tools because
   you omitted `tools`. Add an explicit allowlist without `Edit`/`Write`.
-- **`@agent-name` not found / plugin agent missing** → restart the session
-  (agents load at session start); for the plugin one, confirm it's enabled and run
+- **`@agent-name` not found / plugin agent missing** → if this is the first
+  agent in a `.claude/agents/` folder created mid-session, restart the session;
+  for the plugin one, confirm it's enabled, run `/reload-plugins`, and run
   `claude plugin validate .`.
 
 ---
