@@ -26,6 +26,9 @@ cvičení](exercises.cs.md) ti dá jednu herní featuru k postavení na každý
 mechanismus — a [tahák](cheatsheet.cs.md) je rychlá reference na každodenní
 přepínače, slash příkazy a zkratky.
 
+Mimo workshop ukazuje [Claude pro práci s financemi](finance.cs.md) stejné
+mechanismy (pluginy, skills, MCP) použité na finanční workflow.
+
 ## Než začneš
 
 Potřebuješ:
