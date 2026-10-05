@@ -144,7 +144,7 @@ skills: board-tests
 ```
 
 **`plugins/2048-dev/agents/game-explorer.md`** žije **uvnitř pluginu**, ve složce
-`agents/` **vedle** `commands/` (viz Ukázka 4, která už `agents/` uvádí jako
+`agents/` **vedle** `skills/` (viz Ukázka 4, která už `agents/` uvádí jako
 platnou složku pluginu). Jeho **`tools: Read, Grep, Glob`** ho dělají jen pro
 čtení **bez `Bash`** a nemá vůbec **žádnou řádku `model:`**. Soubor sám uvádí
 `name: game-explorer`; Claude Code ho auto-objeví a pojmenuje
@@ -188,10 +188,12 @@ color: cyan
 3. **Rozhodni o jeho pravomocech.** Jen pro čtení? Vypiš `Read, Grep, Glob`
    a dost. Potřebuje upravovat a sestavovat? Přidej `Edit, Write, Bash`. Pole
    `tools` vynech, jen když opravdu potřebuje všechno.
-4. **Restartuj session — krok, na který každý zapomene.** Agenti se objevují jen
-   při startu session; přidat `.claude/agents/<jmeno>.md` během běžící session
-   a pak napsat `@agent-<jmeno>` skončí chybou „agent nenalezen", dokud nespustíš
-   čerstvý `claude`.
+4. **Restart většinou není potřeba.** Claude Code sleduje `.claude/agents/`
+   a nového nebo upraveného agenta načte během pár sekund. Výjimka, o kterou
+   pořád každý zakopne: pokud složka `.claude/agents/` při startu session
+   **neexistovala** (tvůj první projektový agent), `@agent-<jmeno>` skončí
+   chybou „agent nenalezen", dokud `claude` nerestartuješ, protože sledování
+   pokrývá jen složky, které existovaly při startu.
 5. **Vyvolej ho** třemi způsoby: prostou prosbou odpovídající `description`,
    zmínkou `@agent-my-agent`, nebo `claude --agent my-agent`.
 6. **Zacommituj ho**, ať ho má každý, kdo si repo naklonuje:
@@ -226,6 +228,8 @@ Spusť v čerstvé session `claude` v kořeni repa:
 | `model` | Model pro agenta; `inherit` = stejný jako spouštějící konverzace |
 | `color` | Barva v UI agentů |
 | `skills` | Přednačte jeden či víc skillů do agenta (seznam přes čárku nebo YAML pole), např. `skills: board-tests` |
+| `background: true` | Agent poběží vždy na pozadí. I bez toho Claude spouští subagenty na pozadí ve výchozím stavu a v popředí jen tehdy, když výsledek potřebuje, než bude pokračovat |
+| `omitClaudeMd: true` | Přeskočí uživatelské, projektové a lokální soubory `CLAUDE.md`, aby kontext agenta zůstal štíhlý (vestavění Explore a Plan to dělají už teď) |
 | `<example>` / `<commentary>` v `description` | Scénáře, které učí Clauda, *kdy* agentovi automaticky delegovat |
 
 Úplný aktuální seznam: [oficiální dokumentace subagentů](https://code.claude.com/docs/en/sub-agents).
@@ -248,8 +252,9 @@ právě proto, že žije v pluginu, ne v `.claude/agents/`.
   bez `<example>` bloků. Popiš *situaci uživatele* a přidej spouštěcí scénáře.
 - **Agent upravil soubor, který neměl** → zdědil všechny nástroje, protože jsi
   vynechal `tools`. Přidej explicitní seznam bez `Edit`/`Write`.
-- **`@agent-name` se nenašel / pluginový agent chybí** → restartuj session
-  (agenti se načítají při startu); u pluginového ověř, že je zapnutý, a spusť
+- **`@agent-name` se nenašel / pluginový agent chybí** → pokud jde o prvního
+  agenta ve složce `.claude/agents/` vytvořené během session, restartuj
+  session; u pluginového ověř, že je zapnutý, spusť `/reload-plugins` a
   `claude plugin validate .`.
 
 ---
