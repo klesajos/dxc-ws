@@ -10,6 +10,20 @@
   "enabledPlugins": {
     "2048-dev@dxc-ws": true
   },
+  "permissions": {
+    "allow": [
+      "Bash(cmake *)",
+      "Bash(ctest *)"
+    ],
+    "ask": [
+      "Bash(git push *)"
+    ],
+    "deny": [
+      "Read(.env)",
+      "Read(.env.*)",
+      "Edit(build/**)"
+    ]
+  },
   "hooks": {
     "PostToolUse": [
       {
