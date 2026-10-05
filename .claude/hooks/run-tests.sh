@@ -18,7 +18,8 @@ if [ ! -d "$build_dir" ] || ! command -v ctest >/dev/null 2>&1; then
 fi
 
 # Run quietly and keep only ctest's summary line, e.g.
-# "100% tests passed, 0 tests failed out of 13".
+# "100% tests passed, 0 tests failed out of 13" (ctest 3.x) or
+# "100% tests passed out of 13" (ctest 4.x).
 summary=$(ctest --test-dir "$build_dir" 2>/dev/null | grep -E 'tests passed' | tail -1 || true)
 
 # build/ exists but nothing is built/registered yet — stay silent.
@@ -27,7 +28,7 @@ if [ -z "$summary" ]; then
 fi
 
 case "$summary" in
-    *"0 tests failed"*) echo "run-tests hook: ✓ $summary" ;;
+    "100% tests passed"*) echo "run-tests hook: ✓ $summary" ;;
     *) echo "run-tests hook: ✗ $summary (run 'ctest --test-dir build' for details)" ;;
 esac
 

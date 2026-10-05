@@ -28,8 +28,9 @@ Jsou v tom dva soubory:
 ```
 
 Tenhle průvodce projde formátovací hook celý, pak přidá **druhý hook** na jinou
-událost — `Stop` hook, který spustí testy, když Claude dokončí odpověď — a
-vysvětlí tři **typy** hooků.
+událost — `Stop` hook, který spustí testy, když Claude dokončí odpověď — pak dva
+**hooky pro pojistku a kontext** (`PreToolUse`, `UserPromptSubmit`) a vysvětlí
+tři **typy** hooků.
 
 ## Část 1: registrace (`.claude/settings.json`) řádek po řádku
 
@@ -203,7 +204,7 @@ if [ -z "$summary" ]; then
     exit 0
 fi
 case "$summary" in
-    *"0 tests failed"*) echo "run-tests hook: ✓ $summary" ;;
+    "100% tests passed"*) echo "run-tests hook: ✓ $summary" ;;
     *) echo "run-tests hook: ✗ $summary (run 'ctest --test-dir build' for details)" ;;
 esac
 ```
@@ -212,11 +213,11 @@ esac
   skončí, když neexistuje adresář `build/` **nebo** není `ctest` v PATH — takže
   na čerstvém, nesestaveném klonu zůstane potichu místo toho, aby chybovala.
 - **Řádek se souhrnem** `ctest … | grep -E 'tests passed' | tail -1` ponechá jen
-  jednořádkový součet ctestu (např. `100% tests passed, 0 tests failed out of 13`);
+  jednořádkový součet ctestu (např. `100% tests passed out of 13` u ctest 4.x);
   `|| true` zabrání tomu, aby neúspěšný běh shodil skript pod `set -e`, a následné
   `[ -z "$summary" ]` tiše skončí, když build zatím žádné testy neregistruje.
-- **Verdikt** — `case` vypíše `run-tests hook: ✓ $summary`, když součet obsahuje
-  `0 tests failed`, jinak `run-tests hook: ✗ $summary` s tipem, ať znovu spustíš
+- **Verdikt** — `case` vypíše `run-tests hook: ✓ $summary`, když součet začíná
+  `100% tests passed`, jinak `run-tests hook: ✗ $summary` s tipem, ať znovu spustíš
   `ctest`.
 
 **Chceš, aby spíš *blokoval* než informoval?** `Stop` hook, který skončí
@@ -232,10 +233,185 @@ zeptej. Když odpověď skončí, `Stop` hook spustí testovací sadu a v přepi
 objeví informativní řádek:
 
 ```
-run-tests hook: ✓ 100% tests passed, 0 tests failed out of 13
+run-tests hook: ✓ 100% tests passed out of 13
 ```
 
 Než poprvé sestavíš, hook zůstává potichu — to dělá svou práci ta stráž výše.
+
+## Další dva hooky: pojistka a živý git kontext
+
+Repo obsahuje ještě dva `command` hooky. Spolu s prvními dvěma pokrývají čtyři
+události, které budeš používat nejčastěji: `UserPromptSubmit` → `PreToolUse` →
+`PostToolUse` → `Stop`.
+
+Jejich registrace, doslova z `.claude/settings.json`:
+
+```json
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/git-context.sh"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/block-destructive.sh"
+          }
+        ]
+      }
+    ],
+```
+
+### Pojistka: `block-destructive.sh` (`PreToolUse`)
+
+Spustí se **před** každým Bash příkazem a odmítne ty, které zničí práci, jakou
+ti git už nevrátí: rekurzivní vynucené mazání (kromě `rm -rf build`),
+`git reset --hard`, force-push (`--force-with-lease` je povolený),
+`git clean -f` a `git checkout -- .` / `git restore .`.
+
+```bash
+#!/usr/bin/env bash
+# PreToolUse hook (matcher: Bash): refuse shell commands that destroy work
+# which git can't give back. Claude receives the reason and picks a safer
+# route; everything else passes through untouched.
+set -euo pipefail
+
+input=$(cat)
+
+if command -v jq >/dev/null 2>&1; then
+    command=$(printf '%s' "$input" | jq -r '.tool_input.command // empty')
+else
+    command=$(printf '%s' "$input" | python3 -c \
+        'import json,sys; print(json.load(sys.stdin).get("tool_input", {}).get("command", ""))')
+fi
+
+deny() {
+    printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"%s"}}\n' "$1"
+    exit 0
+}
+
+# Wiping the build directory is routine; any other recursive force-delete is not.
+# Flags are checked separately so `rm -rf`, `rm -fr` and `rm -r -f` all match.
+if printf '%s' "$command" | grep -Eq '(^|[;&|[:space:]])rm[[:space:]]' \
+    && printf '%s' "$command" | grep -Eq '[[:space:]](-[[:alpha:]]*[rR]|--recursive)' \
+    && printf '%s' "$command" | grep -Eq '[[:space:]](-[[:alpha:]]*f|--force)' \
+    && ! printf '%s' "$command" | grep -Eq '^rm -rf (\./)?build/?$'; then
+    deny "block-destructive hook: recursive force-delete is blocked. Only 'rm -rf build' is allowed; delete specific files instead."
+fi
+
+if printf '%s' "$command" | grep -Eq 'git[[:space:]]+reset[[:space:]].*--hard'; then
+    deny "block-destructive hook: git reset --hard discards uncommitted work. Use git stash, or git reset --soft."
+fi
+
+# --force-with-lease is the safe variant, so only bare -f / --force is blocked.
+if printf '%s' "$command" | grep -Eq 'git[[:space:]]+push([[:space:]].*)?[[:space:]](-f|--force)([[:space:]]|$)'; then
+    deny "block-destructive hook: force-push is blocked. Use git push --force-with-lease, or ask the user."
+fi
+
+if printf '%s' "$command" | grep -Eq 'git[[:space:]]+clean[[:space:]]+-[[:alpha:]]*f'; then
+    deny "block-destructive hook: git clean -f deletes untracked files for good. Run git clean -n first and show the user the list."
+fi
+
+if printf '%s' "$command" | grep -Eq 'git[[:space:]]+(checkout[[:space:]]+(--[[:space:]]+)?|restore[[:space:]]+)\.([[:space:]]|$)'; then
+    deny "block-destructive hook: this discards every uncommitted change. Restore individual files, or git stash."
+fi
+
+exit 0
+```
+
+- **Jak blokuje:** vypíše JSON objekt s `"permissionDecision": "deny"` uvnitř
+  `hookSpecificOutput` a skončí s kódem 0. `permissionDecisionReason` jde
+  **Claudovi**, takže zpráva mu říká, co udělat místo toho („použij
+  `--force-with-lease`"). Blokuje i návratový kód 2 s důvodem na stderr.
+- **Ticho = povolení.** Žádný výstup a exit 0 znamená „nemám názor": rozhodnou
+  běžná pravidla oprávnění a aktuální režim.
+- **Porovnává text, takže počítej s falešnými poplachy.** Při psaní tohoto
+  průvodce hook zablokoval příkaz, který slova `git reset --hard` jen *obsahoval*
+  uvnitř heredocu. Hooky na vzory se raději mýlí ve prospěch blokování. Pro
+  pojistku je to v pořádku, ale řekni lidem, jak to obejít (tady: dej text do
+  souboru).
+- **Hook vs. deny pravidlo:** deny pravidlo `Bash(git push --force *)`
+  v `settings.json` ([Ukázka 9](09-permissions-sandbox.cs.md)) je jednodušší, ale
+  neumí výjimky (`rm -rf build` ano, `rm -rf src` ne) ani se vysvětlit. Obojí
+  porovnává **text příkazu**, takže ani jedno není bezpečnostní hranice:
+  `bash -c '…'` obejde obojí. Skutečnou hranici dá sandbox.
+
+### Živý kontext: `git-context.sh` (`UserPromptSubmit`)
+
+Spustí se, když odešleš prompt, **dřív**, než ho Claude uvidí, a přidá jeden řádek
+jako `Git: on branch main, 2 uncommitted file(s): src/board.cpp, tests/test_board.cpp`.
+
+```bash
+#!/usr/bin/env bash
+# UserPromptSubmit hook: before Claude sees each prompt, tell it which branch
+# it is on and which files are uncommitted. Saves Claude a `git status` call
+# and stops it from assuming a clean tree.
+set -euo pipefail
+
+# Drain the prompt JSON on stdin; this hook doesn't need any of its fields.
+cat >/dev/null
+
+project_dir="${CLAUDE_PROJECT_DIR:-$(pwd)}"
+cd "$project_dir"
+
+# Outside a git checkout there's nothing to report.
+git rev-parse --is-inside-work-tree >/dev/null 2>&1 || exit 0
+
+branch=$(git branch --show-current 2>/dev/null)
+branch=${branch:-"(detached HEAD)"}
+changes=$(git status --porcelain 2>/dev/null)
+
+if [ -z "$changes" ]; then
+    context="Git: on branch $branch, working tree clean."
+else
+    count=$(printf '%s\n' "$changes" | wc -l | tr -d ' ')
+    # Cap the list so a huge diff can't flood the context window.
+    files=$(printf '%s\n' "$changes" | head -10 | awk '{print $NF}' | paste -sd ',' - | sed 's/,/, /g')
+    context="Git: on branch $branch, $count uncommitted file(s): $files"
+    [ "$count" -gt 10 ] && context="$context, ..."
+fi
+
+# json.dumps escapes quotes and backslashes in file names.
+CONTEXT="$context" python3 -c '
+import json, os
+print(json.dumps({"hookSpecificOutput": {
+    "hookEventName": "UserPromptSubmit",
+    "additionalContext": os.environ["CONTEXT"]}}))'
+```
+
+- **Jak přidává kontext:** JSON s `hookSpecificOutput.additionalContext`.
+  Claude Code zabalí řetězec do systémové připomínky (system reminder), kterou
+  Claude čte, ale v chatu se jako zpráva neobjeví. Funguje i obyčejný stdout;
+  JSON je bezpečnější, protože `json.dumps` escapuje podivné názvy souborů.
+- **Drž ho malý:** běží u **každého** promptu, takže pokaždé stojí tokeny.
+  Seznam je omezený na 10 souborů a dokumentace omezuje `additionalContext`
+  jakéhokoli hooku na 10 000 znaků.
+- **Musí být rychlý:** prompt na hook čeká. `git status` trvá milisekundy;
+  síťové volání by tady zpomalilo každý prompt.
+
+## Vyzkoušej dva nové hooky
+
+1. Požádej Clauda: *„Spusť přesně tenhle příkaz: git push --force nowhere main"*.
+   Hook ho zablokuje dřív, než git poběží. Claude ocituje
+   `block-destructive hook: force-push is blocked…` a navrhne
+   `--force-with-lease`. (Remote `nowhere` neexistuje, takže test je neškodný
+   i bez hooku.)
+2. Uprav libovolný soubor a pak se zeptej: *„Bez spuštění jakéhokoli nástroje: na
+   které jsem větvi a co není commitnuté?"* Claude odpoví z vloženého kontextu.
+
+Hook otestuješ i bez Clauda tak, že do něj pošleš falešnou událost:
+
+```bash
+echo '{"tool_input":{"command":"git push -f"}}' | .claude/hooks/block-destructive.sh
+```
 
 ## Typy hooků: command, prompt, agent
 
@@ -284,6 +460,26 @@ na celý životní cyklus session. Které stojí za to znát nejdřív:
 | `Stop` | Když Claude končí odpověď — např. ověřit, že testy opravdu běžely |
 
 Úplný seznam událostí a polí: [oficiální dokumentace hooks](https://code.claude.com/docs/en/hooks).
+
+## Další recepty na hooky
+
+Nápady, které stojí za to znát, ale v repu nejsou — buď proto, že jsou osobní
+(notifikace), potřebují infrastrukturu (auditní endpoint), nebo se nehodí ke
+C++ hře. Každá událost níže v Claude Code 2.1.283 existuje:
+
+| Recept | Událost | Co dělá |
+|--------|---------|---------|
+| Spustit jen relevantní testy | `PostToolBatch` | Po dokončení dávky paralelních úprav spustí testy jen pro dotčené soubory, jednou za dávku místo jednou za úpravu |
+| Desktopová notifikace | `Notification` | `osascript -e 'display notification "Claude needs you"'`, když Claude čeká na oprávnění (`permission_prompt`) nebo na vstup (`idle_prompt`). Patří do tvého **osobního** `~/.claude/settings.json` |
+| Ochrana souborů | `PreToolUse` (`Edit\|Write`) | Zakáže úpravy lockfilů, `.git/` a generovaného kódu. Na prosté blokování cest je jednodušší deny pravidlo `Edit(...)` ([Ukázka 9](09-permissions-sandbox.cs.md)) |
+| Sken tajemství | `PreToolUse` / `Stop` | Odmítne úpravy obsahující klíče, nebo před dokončením spustí `gitleaks` na diff |
+| Brána před commitem | `PreToolUse` (`Bash`, `"if": "Bash(git commit *)"`) | Před `git commit` spustí lint/testy nebo zkontroluje formát commit message |
+| AI review brána | `Stop`, `"type": "prompt"` | Malý model zkontroluje „splňuje změna zadání?" a když ne, zablokuje ukončení. Stojí jedno volání modelu za odpověď |
+| Načtení dev prostředí | `SessionStart` + `CwdChanged` | Spustí `direnv` nebo podobný nástroj při startu session nebo když Claude udělá `cd` |
+| Znovu vložit omezení | `PostCompact` | Po kompakci kontextu připomene Claudovi aktivní ticket nebo akceptační kritéria |
+| Hlídání změn konfigurace | `ConfigChange` | Loguje nebo blokuje úpravy nastavení, pravidel či skillů během session. Hodí se v regulovaném prostředí |
+| Auditní stopa | `PostToolUse`, `"type": "http"` | Pošle (POST) každé volání nástroje na interní endpoint |
+| Cenzura obrazovky | `MessageDisplay` | Odstraní z vykreslovaného výstupu názvy hostů nebo ID zákazníků, aniž by měnil přepis konverzace |
 
 ## Kde to funguje: CLI, Desktop aplikace, Cowork
 

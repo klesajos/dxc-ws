@@ -29,7 +29,8 @@ Two files are involved:
 
 This guide walks through that format hook in full, then adds a **second hook**
 on a different event — a `Stop` hook that runs the tests when Claude finishes a
-turn — and explains the three hook **types**.
+turn — then two **guard-rail and context hooks** (`PreToolUse`,
+`UserPromptSubmit`), and explains the three hook **types**.
 
 ## Part 1: the registration (`.claude/settings.json`), line by line
 
@@ -206,7 +207,7 @@ if [ -z "$summary" ]; then
     exit 0
 fi
 case "$summary" in
-    *"0 tests failed"*) echo "run-tests hook: ✓ $summary" ;;
+    "100% tests passed"*) echo "run-tests hook: ✓ $summary" ;;
     *) echo "run-tests hook: ✗ $summary (run 'ctest --test-dir build' for details)" ;;
 esac
 ```
@@ -215,11 +216,11 @@ esac
   bails out if there's no `build/` directory **or** no `ctest` on PATH — so the
   hook stays silent on a fresh, unbuilt clone instead of erroring.
 - **The summary line** `ctest … | grep -E 'tests passed' | tail -1` keeps only
-  ctest's one-line tally (e.g. `100% tests passed, 0 tests failed out of 13`);
+  ctest's one-line tally (e.g. `100% tests passed out of 13` on ctest 4.x);
   `|| true` keeps a failing run from aborting under `set -e`, and the following
   `[ -z "$summary" ]` exits quietly if the build registers no tests yet.
 - **The verdict** — the `case` prints `run-tests hook: ✓ $summary` when the tally
-  contains `0 tests failed`, otherwise `run-tests hook: ✗ $summary` with a hint
+  starts with `100% tests passed`, otherwise `run-tests hook: ✗ $summary` with a hint
   to rerun `ctest`.
 
 **Want it to *block* instead of inform?** A `Stop` hook that exits non-zero (or
@@ -235,10 +236,186 @@ the turn finishes, the `Stop` hook runs the suite and an advisory line appears i
 the transcript:
 
 ```
-run-tests hook: ✓ 100% tests passed, 0 tests failed out of 13
+run-tests hook: ✓ 100% tests passed out of 13
 ```
 
 Before the first build the hook stays silent — that's the guard doing its job.
+
+## Two more hooks: a guard rail and live git context
+
+The repo ships two more `command` hooks. Together with the first two they cover
+the four events you'll use most: `UserPromptSubmit` → `PreToolUse` →
+`PostToolUse` → `Stop`.
+
+Their registrations, verbatim from `.claude/settings.json`:
+
+```json
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/git-context.sh"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/block-destructive.sh"
+          }
+        ]
+      }
+    ],
+```
+
+### Guard rail: `block-destructive.sh` (`PreToolUse`)
+
+Fires **before** every Bash command and refuses the ones that destroy work git
+can't give back: recursive force-deletes (except `rm -rf build`),
+`git reset --hard`, force-push (`--force-with-lease` is allowed),
+`git clean -f` and `git checkout -- .` / `git restore .`.
+
+```bash
+#!/usr/bin/env bash
+# PreToolUse hook (matcher: Bash): refuse shell commands that destroy work
+# which git can't give back. Claude receives the reason and picks a safer
+# route; everything else passes through untouched.
+set -euo pipefail
+
+input=$(cat)
+
+if command -v jq >/dev/null 2>&1; then
+    command=$(printf '%s' "$input" | jq -r '.tool_input.command // empty')
+else
+    command=$(printf '%s' "$input" | python3 -c \
+        'import json,sys; print(json.load(sys.stdin).get("tool_input", {}).get("command", ""))')
+fi
+
+deny() {
+    printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"%s"}}\n' "$1"
+    exit 0
+}
+
+# Wiping the build directory is routine; any other recursive force-delete is not.
+# Flags are checked separately so `rm -rf`, `rm -fr` and `rm -r -f` all match.
+if printf '%s' "$command" | grep -Eq '(^|[;&|[:space:]])rm[[:space:]]' \
+    && printf '%s' "$command" | grep -Eq '[[:space:]](-[[:alpha:]]*[rR]|--recursive)' \
+    && printf '%s' "$command" | grep -Eq '[[:space:]](-[[:alpha:]]*f|--force)' \
+    && ! printf '%s' "$command" | grep -Eq '^rm -rf (\./)?build/?$'; then
+    deny "block-destructive hook: recursive force-delete is blocked. Only 'rm -rf build' is allowed; delete specific files instead."
+fi
+
+if printf '%s' "$command" | grep -Eq 'git[[:space:]]+reset[[:space:]].*--hard'; then
+    deny "block-destructive hook: git reset --hard discards uncommitted work. Use git stash, or git reset --soft."
+fi
+
+# --force-with-lease is the safe variant, so only bare -f / --force is blocked.
+if printf '%s' "$command" | grep -Eq 'git[[:space:]]+push([[:space:]].*)?[[:space:]](-f|--force)([[:space:]]|$)'; then
+    deny "block-destructive hook: force-push is blocked. Use git push --force-with-lease, or ask the user."
+fi
+
+if printf '%s' "$command" | grep -Eq 'git[[:space:]]+clean[[:space:]]+-[[:alpha:]]*f'; then
+    deny "block-destructive hook: git clean -f deletes untracked files for good. Run git clean -n first and show the user the list."
+fi
+
+if printf '%s' "$command" | grep -Eq 'git[[:space:]]+(checkout[[:space:]]+(--[[:space:]]+)?|restore[[:space:]]+)\.([[:space:]]|$)'; then
+    deny "block-destructive hook: this discards every uncommitted change. Restore individual files, or git stash."
+fi
+
+exit 0
+```
+
+- **How it blocks:** it prints a JSON object with
+  `"permissionDecision": "deny"` inside `hookSpecificOutput` and exits 0. The
+  `permissionDecisionReason` goes **to Claude**, so the message tells it what to
+  do instead ("use `--force-with-lease`"). Exiting 2 with the reason on stderr
+  blocks too.
+- **Silence = allow.** No output and exit 0 means "no opinion": the normal
+  permission rules and mode decide.
+- **It matches text, so expect false positives.** While writing this guide, the
+  hook blocked a command that only *contained* the words `git reset --hard`
+  inside a heredoc. Pattern hooks err on the side of blocking. That's fine for a
+  guard rail, but tell people how to work around it (here: put the text in a
+  file).
+- **Hook vs. deny rule:** a `Bash(git push --force *)` deny rule in
+  `settings.json` ([Example 9](09-permissions-sandbox.md)) is simpler, but it
+  can't make exceptions (`rm -rf build` yes, `rm -rf src` no) or explain itself.
+  Both match **command text**, so neither is a security boundary:
+  `bash -c '…'` gets around both. For a real boundary, use the sandbox.
+
+### Live context: `git-context.sh` (`UserPromptSubmit`)
+
+Fires when you submit a prompt, **before** Claude sees it, and adds one line
+such as `Git: on branch main, 2 uncommitted file(s): src/board.cpp, tests/test_board.cpp`.
+
+```bash
+#!/usr/bin/env bash
+# UserPromptSubmit hook: before Claude sees each prompt, tell it which branch
+# it is on and which files are uncommitted. Saves Claude a `git status` call
+# and stops it from assuming a clean tree.
+set -euo pipefail
+
+# Drain the prompt JSON on stdin; this hook doesn't need any of its fields.
+cat >/dev/null
+
+project_dir="${CLAUDE_PROJECT_DIR:-$(pwd)}"
+cd "$project_dir"
+
+# Outside a git checkout there's nothing to report.
+git rev-parse --is-inside-work-tree >/dev/null 2>&1 || exit 0
+
+branch=$(git branch --show-current 2>/dev/null)
+branch=${branch:-"(detached HEAD)"}
+changes=$(git status --porcelain 2>/dev/null)
+
+if [ -z "$changes" ]; then
+    context="Git: on branch $branch, working tree clean."
+else
+    count=$(printf '%s\n' "$changes" | wc -l | tr -d ' ')
+    # Cap the list so a huge diff can't flood the context window.
+    files=$(printf '%s\n' "$changes" | head -10 | awk '{print $NF}' | paste -sd ',' - | sed 's/,/, /g')
+    context="Git: on branch $branch, $count uncommitted file(s): $files"
+    [ "$count" -gt 10 ] && context="$context, ..."
+fi
+
+# json.dumps escapes quotes and backslashes in file names.
+CONTEXT="$context" python3 -c '
+import json, os
+print(json.dumps({"hookSpecificOutput": {
+    "hookEventName": "UserPromptSubmit",
+    "additionalContext": os.environ["CONTEXT"]}}))'
+```
+
+- **How it adds context:** JSON with `hookSpecificOutput.additionalContext`.
+  Claude Code wraps the string in a system reminder that Claude reads, but it
+  doesn't appear as a chat message. Plain stdout works too; JSON is safer
+  because `json.dumps` escapes odd file names.
+- **Keep it small:** this runs on **every** prompt, so it costs tokens every
+  time. The list is capped at 10 files, and the docs cap any hook's
+  `additionalContext` at 10,000 characters.
+- **It must be fast:** the prompt waits for the hook. `git status` is
+  milliseconds; a network call here would make every prompt feel slow.
+
+## Try the two new hooks
+
+1. Ask Claude: *"Run exactly this command: git push --force nowhere main"*.
+   The hook blocks it before git runs. Claude quotes
+   `block-destructive hook: force-push is blocked…` and suggests
+   `--force-with-lease`. (The remote `nowhere` doesn't exist, so the test is
+   harmless even without the hook.)
+2. Edit any file, then ask: *"Without running any tool: which branch am I on
+   and what's uncommitted?"* Claude answers from the injected context.
+
+Test a hook without Claude by piping a fake event into it:
+
+```bash
+echo '{"tool_input":{"command":"git push -f"}}' | .claude/hooks/block-destructive.sh
+```
 
 ## Hook types: command, prompt, agent
 
@@ -288,6 +465,26 @@ the whole session lifecycle. The ones worth knowing first:
 | `Stop` | When Claude finishes its turn — e.g. verify tests were actually run |
 
 Full list of events and fields: [official hooks documentation](https://code.claude.com/docs/en/hooks).
+
+## More hook recipes
+
+Ideas worth knowing, not shipped in this repo, either because they're personal
+(notifications), need infrastructure (an audit endpoint) or don't fit a C++
+game. Every event below exists in Claude Code 2.1.283:
+
+| Recipe | Event | What it does |
+|--------|-------|--------------|
+| Run only the relevant tests | `PostToolBatch` | After a batch of parallel edits resolves, run the tests for the touched files only, once per batch instead of once per edit |
+| Desktop notification | `Notification` | `osascript -e 'display notification "Claude needs you"'` when Claude waits for permission (`permission_prompt`) or input (`idle_prompt`). Belongs in your **personal** `~/.claude/settings.json` |
+| Protect files | `PreToolUse` (`Edit\|Write`) | Deny edits to lockfiles, `.git/`, generated code. For plain path blocks, an `Edit(...)` deny rule ([Example 9](09-permissions-sandbox.md)) is simpler |
+| Secret scan | `PreToolUse` / `Stop` | Reject edits containing keys, or run `gitleaks` on the diff before Claude finishes |
+| Commit gate | `PreToolUse` (`Bash`, `"if": "Bash(git commit *)"`) | Run lint/tests or check the commit-message format before `git commit` |
+| AI review gate | `Stop`, `"type": "prompt"` | A small model checks "does the change satisfy the request?" and blocks the stop if not. Costs a model call per turn |
+| Load the dev environment | `SessionStart` + `CwdChanged` | Run `direnv` or similar when the session starts or Claude `cd`s |
+| Re-inject constraints | `PostCompact` | After context compaction, remind Claude of the active ticket or acceptance criteria |
+| Watch config changes | `ConfigChange` | Log or block mid-session edits to settings, rules or skills. Useful in regulated environments |
+| Audit trail | `PostToolUse`, `"type": "http"` | POST every tool call to an internal endpoint |
+| Redact the screen | `MessageDisplay` | Strip hostnames or customer IDs from what's rendered, without changing the transcript |
 
 ## Where it works: CLI, Desktop app, Cowork
 
