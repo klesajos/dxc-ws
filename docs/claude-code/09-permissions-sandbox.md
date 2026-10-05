@@ -32,8 +32,8 @@ rule and which file it came from. It also has an **Auto mode** tab.
 
 The project's `.claude/settings.json` ships a team-wide baseline:
 
-- **allow:** `cmake` and `ctest` run without a prompt. The hooks and skills
-  call them constantly.
+- **allow:** the three build/test commands this repo uses (configure, build,
+  test) run without a prompt. The hooks and skills call them constantly.
 - **ask:** `git push` always asks, even in `acceptEdits` or `auto` mode.
 - **deny:** Claude's file tools can never read `.env` files and can never
   edit the generated `build/` directory.
@@ -49,8 +49,9 @@ The `permissions` block in `.claude/settings.json`. The hooks from
 ```json
   "permissions": {
     "allow": [
-      "Bash(cmake *)",
-      "Bash(ctest *)"
+      "Bash(cmake -S . -B build *)",
+      "Bash(cmake --build build *)",
+      "Bash(ctest --test-dir build *)"
     ],
     "ask": [
       "Bash(git push *)"
@@ -65,9 +66,13 @@ The `permissions` block in `.claude/settings.json`. The hooks from
 
 What each rule means:
 
-- `Bash(cmake *)` — matches `cmake` followed by anything (`cmake -S . -B build`,
-  `cmake --build build -j`). The space before `*` matters: `Bash(ls *)`
-  matches `ls -la` but not `lsof`.
+- `Bash(cmake --build build *)` — matches `cmake --build build` with any
+  extra arguments (`-j`, `--target tests`), and the bare command too. The
+  space before `*` matters: `Bash(ls *)` matches `ls -la` but not `lsof`.
+  **Why not simply `Bash(cmake *)`?** Because `cmake -E …`, `cmake -P script`
+  and `ctest -S script` run arbitrary commands and scripts, and an allowed
+  command isn't bound by your `Read` deny rules. Allow the exact invocations
+  you need, not the whole program.
 - `Bash(git push *)` in `ask` — prompts even when an `allow` rule or the
   mode would let it through, because ask beats allow.
 - `Read(.env)` — a bare file name follows gitignore rules and matches **at any

@@ -32,7 +32,8 @@ pravidla a ze kterého souboru pocházejí. Má taky záložku **Auto mode**.
 
 Projektový `.claude/settings.json` dodává základ pro celý tým:
 
-- **allow:** `cmake` a `ctest` běží bez dotazu. Hooks a skills je volají
+- **allow:** tři příkazy pro build a testy, které tohle repo používá
+  (konfigurace, build, testy), běží bez dotazu. Hooks a skills je volají
   neustále.
 - **ask:** `git push` se ptá vždycky, i v režimu `acceptEdits` nebo `auto`.
 - **deny:** Claudovy souborové nástroje nikdy nesmí číst soubory `.env` a nikdy
@@ -49,8 +50,9 @@ Blok `permissions` v `.claude/settings.json`. Hooks z
 ```json
   "permissions": {
     "allow": [
-      "Bash(cmake *)",
-      "Bash(ctest *)"
+      "Bash(cmake -S . -B build *)",
+      "Bash(cmake --build build *)",
+      "Bash(ctest --test-dir build *)"
     ],
     "ask": [
       "Bash(git push *)"
@@ -65,9 +67,13 @@ Blok `permissions` v `.claude/settings.json`. Hooks z
 
 Co které pravidlo znamená:
 
-- `Bash(cmake *)` — odpovídá `cmake` následovanému čímkoli (`cmake -S . -B build`,
-  `cmake --build build -j`). Na mezeře před `*` záleží: `Bash(ls *)`
-  odpovídá `ls -la`, ale ne `lsof`.
+- `Bash(cmake --build build *)` — odpovídá `cmake --build build` s
+  libovolnými dalšími argumenty (`-j`, `--target tests`) i samotnému příkazu.
+  Na mezeře před `*` záleží: `Bash(ls *)` odpovídá `ls -la`, ale ne `lsof`.
+  **Proč ne prostě `Bash(cmake *)`?** Protože `cmake -E …`, `cmake -P script`
+  a `ctest -S script` spouštějí libovolné příkazy a skripty a povolený příkaz
+  se neřídí tvými deny pravidly pro `Read`. Povol přesná volání, která
+  potřebuješ, ne celý program.
 - `Bash(git push *)` v `ask` — ptá se, i když by ho pravidlo `allow` nebo
   režim pustily dál, protože ask má přednost před allow.
 - `Read(.env)` — holý název souboru se řídí pravidly gitignore a odpovídá **v jakékoli

@@ -12,8 +12,9 @@
   },
   "permissions": {
     "allow": [
-      "Bash(cmake *)",
-      "Bash(ctest *)"
+      "Bash(cmake -S . -B build *)",
+      "Bash(cmake --build build *)",
+      "Bash(ctest --test-dir build *)"
     ],
     "ask": [
       "Bash(git push *)"
