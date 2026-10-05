@@ -25,6 +25,9 @@ through all six, the [exercise catalog](exercises.md) gives you one game
 feature to build per mechanism — and the [cheat-sheet](cheatsheet.md) is a
 quick reference for the day-to-day flags, slash commands and shortcuts.
 
+Outside the workshop, [Using Claude for finance work](finance.md) shows the
+same mechanisms (plugins, skills, MCP) applied to finance workflows.
+
 ## Before you start
 
 You need:
