@@ -2,7 +2,7 @@
 
 # Ukázky rozšíření Claude Code
 
-Tohle repo zároveň slouží jako ukázka šesti způsobů, jak rozšířit Claude Code
+Tohle repo zároveň slouží jako ukázka deseti způsobů, jak rozšířit Claude Code
 na úrovni **projektu**. „Na úrovni projektu" znamená, že konfigurace žije
 **přímo v repozitáři** — když si projekt naklonuješ přes `git clone`,
 dostaneš celé nastavení automaticky. Nic se neinstaluje do domovského
@@ -19,11 +19,15 @@ nejjednodušší po nejpokročilejší:
 | 4 | [Pluginy](04-plugins.cs.md) | Jak zabalit příkazy/skills/hooks, aby je mohl sdílet celý tým | `plugins/2048-dev/` + `.claude-plugin/marketplace.json` |
 | 5 | [Subagenti](05-agents.cs.md) | Jak delegovat samostatný úkol do izolovaného kontextu s vlastními nástroji a personou | `.claude/agents/` + `plugins/2048-dev/agents/` |
 | 6 | [Workflows](06-workflows.cs.md) | Jak spustit víc agentů v pevně daném, opakovatelném pořadí definovaném v kódu | `.claude/workflows/` |
+| 7 | [Projektová pravidla](07-project-instructions.cs.md) | Instrukce, které se načtou, jen když Claude sáhne na odpovídající soubory; `CLAUDE.md` vs. `AGENTS.md` | `.claude/rules/board-logic.md` |
+| 8 | [Output styles](08-output-styles.cs.md) | Jak změnit způsob, jakým Claude odpovídá: strukturu, délku, tón | `.claude/output-styles/workshop-tutor.md` |
+| 9 | [Oprávnění a sandbox](09-permissions-sandbox.cs.md) | Týmová pravidla allow/ask/deny, sandbox a ochrana proti prompt injection | `.claude/settings.json` (`permissions`) |
+| 10 | [Validace a evaly](10-validate-eval.cs.md) | Jak dokázat, že plugin funguje: strukturální kontroly plus bodované evaly s pluginem / bez pluginu | `plugins/2048-dev/evals/` |
 
 Každý návod existuje ve dvou jazycích: `xx-nazev.md` je anglicky,
-`xx-nazev.cs.md` česky. Obsah je stejný. Až projdeš všech šest, [katalog
-cvičení](exercises.cs.md) ti dá jednu herní featuru k postavení na každý
-mechanismus — a [tahák](cheatsheet.cs.md) je rychlá reference na každodenní
+`xx-nazev.cs.md` česky. Obsah je stejný. Až projdeš všech deset, [katalog
+cvičení](exercises.cs.md) ti dá jednu herní featuru k postavení pro každý
+z prvních šesti mechanismů — a [tahák](cheatsheet.cs.md) je rychlá reference na každodenní
 přepínače, slash příkazy a zkratky.
 
 ## Než začneš
@@ -72,6 +76,10 @@ Každý návod má podrobnou sekci „Kde to funguje"; shrnutí:
 | Plugin (in-repo marketplace) | ✅ | ✅ | ⚠️ — obsah funguje, ale instaluje se přes správu pluginů v Coworku, ne přes projektové nastavení |
 | Subagenti (`.claude/agents/`) | ✅ | ✅ | ❌ — zabal agenta raději do pluginu |
 | Workflows (`.claude/workflows/`) | ✅ | ✅* | ❌* — lokální orchestrace; *podpora Desktopu/Coworku závisí na tvém buildu — ověř ve své verzi |
+| Pravidla (`.claude/rules/`) | ✅ | ✅ | ❌ — dej instrukce raději do skillu v pluginu |
+| Output styles (`.claude/output-styles/`) | ✅ | ✅ | ❌ — zabal styl raději do pluginu |
+| Oprávnění (`.claude/settings.json`) | ✅ | ✅ | ❌ — Cowork používá vlastní sandboxované VM |
+| Evaly pluginů (`plugins/*/evals/`) | ✅ | ⚠️ — spusť `claude plugin eval` z terminálu | ❌ |
 
 Proč: CLI a záložka **Code** v Desktopu běží na stejném enginu a sdílejí
 veškerou projektovou konfiguraci — Desktop jen přidává jednorázový dialog
