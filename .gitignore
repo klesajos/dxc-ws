@@ -7,3 +7,6 @@ compile_commands.json
 *.o
 *.out
 workshop-feedback-A5.pdf
+.env
+.env.*
+plugins/*/evals/results/

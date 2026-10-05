@@ -2,7 +2,7 @@
 
 # Claude Code extension examples
 
-This repo doubles as a showcase of the six **project-scoped** ways to extend
+This repo doubles as a showcase of the ten **project-scoped** ways to extend
 Claude Code. "Project-scoped" means the configuration lives **inside the
 repository** — when you `git clone` the project, you get the whole setup
 automatically. Nothing needs to be installed into your home directory.
@@ -18,11 +18,15 @@ go from simplest to most advanced:
 | 4 | [Plugins](04-plugins.md) | Packaging commands/skills/hooks so a whole team can share them | `plugins/2048-dev/` + `.claude-plugin/marketplace.json` |
 | 5 | [Subagents](05-agents.md) | Delegating a self-contained task to an isolated context with its own tools and persona | `.claude/agents/` + `plugins/2048-dev/agents/` |
 | 6 | [Workflows](06-workflows.md) | Running several agents in a fixed, repeatable order defined in code | `.claude/workflows/` |
+| 7 | [Project rules](07-project-instructions.md) | Instructions that load only when Claude touches matching files; `CLAUDE.md` vs `AGENTS.md` | `.claude/rules/board-logic.md` |
+| 8 | [Output styles](08-output-styles.md) | Changing how Claude answers: structure, length, tone | `.claude/output-styles/workshop-tutor.md` |
+| 9 | [Permissions & sandbox](09-permissions-sandbox.md) | Team-wide allow/ask/deny rules, the sandbox, and prompt-injection safety | `.claude/settings.json` (`permissions`) |
+| 10 | [Validate & eval](10-validate-eval.md) | Proving a plugin works: structural checks plus scored with/without-plugin evals | `plugins/2048-dev/evals/` |
 
 Every guide exists in two languages: `xx-name.md` is English,
 `xx-name.cs.md` is Czech. They have the same content. When you've worked
-through all six, the [exercise catalog](exercises.md) gives you one game
-feature to build per mechanism — and the [cheat-sheet](cheatsheet.md) is a
+through all ten, the [exercise catalog](exercises.md) gives you one game
+feature to build for each of the first six mechanisms — and the [cheat-sheet](cheatsheet.md) is a
 quick reference for the day-to-day flags, slash commands and shortcuts.
 
 Outside the workshop, [Using Claude for finance work](finance.md) shows the
@@ -73,6 +77,10 @@ Each guide has a detailed "Where it works" section; the summary:
 | Plugin (in-repo marketplace) | ✅ | ✅ | ⚠️ — content works, but install via Cowork's plugin management, not project settings |
 | Subagents (`.claude/agents/`) | ✅ | ✅ | ❌ — bundle the agent in a plugin instead |
 | Workflows (`.claude/workflows/`) | ✅ | ✅* | ❌* — local orchestration; *Desktop/Cowork support depends on your build — confirm in your version |
+| Rules (`.claude/rules/`) | ✅ | ✅ | ❌ — put the instructions in a plugin skill instead |
+| Output styles (`.claude/output-styles/`) | ✅ | ✅ | ❌ — ship the style in a plugin instead |
+| Permissions (`.claude/settings.json`) | ✅ | ✅ | ❌ — Cowork uses its own sandboxed VM |
+| Plugin evals (`plugins/*/evals/`) | ✅ | ⚠️ — run `claude plugin eval` from a terminal | ❌ |
 
 Why: the CLI and the Desktop **Code tab** run the same engine and share all
 project configuration — the Desktop just adds a one-time project trust

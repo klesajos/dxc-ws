@@ -4,13 +4,15 @@
 
 Číslované průvodce tě učí, jak Claude Code **rozšířit** ([skills](01-skills.cs.md),
 [hooks](02-hooks.cs.md), [MCP](03-mcp.cs.md), [pluginy](04-plugins.cs.md),
-[subagenti](05-agents.cs.md), [workflows](06-workflows.cs.md)). Tahle stránka je
+[subagenti](05-agents.cs.md), [workflows](06-workflows.cs.md), [pravidla](07-project-instructions.cs.md),
+[output styles](08-output-styles.cs.md), [oprávnění](09-permissions-sandbox.cs.md),
+[evaly](10-validate-eval.cs.md)). Tahle stránka je
 ta druhá půlka: jak ho
 **ovládat** každý den — přepínače, slash příkazy, klávesové zkratky, prefixy
 a události hooků, po kterých sáhneš pořád, ale nezaslouží si každý vlastní
 průvodce.
 
-> ✅ **Ověřeno proti Claude Code 2.1.195 (2026-06-29).** Rozhraní CLI se mezi
+> ✅ **Ověřeno proti Claude Code 2.1.283 (2026-10-05).** Rozhraní CLI se mezi
 > verzemi mění — zkontroluj `claude --version` a
 > [oficiální dokumentaci](https://code.claude.com/docs/en/cli-reference), pokud
 > tu něco nesedí.
@@ -27,7 +29,7 @@ průvodce.
 | `claude --model opus` | Spustí na konkrétním modelu (`opus`, `sonnet`, `haiku`, `opusplan`) |
 | `claude --agent cpp-reviewer` | Spustí celou session jako pojmenovaného subagenta |
 | `claude --add-dir ../lib` | Dá session přístup k dalším složkám mimo repo |
-| `claude --permission-mode plan` | Spustí v režimu oprávnění (`plan` / `acceptEdits` / `auto` / `dontAsk` / `bypassPermissions`) |
+| `claude --permission-mode plan` | Spustí v režimu oprávnění (`manual` / `acceptEdits` / `plan` / `auto` / `dontAsk` / `bypassPermissions`) |
 | `claude -p "..." --allowedTools "Read,Edit,Bash(git diff *)"` | Allowlist nástrojů, které smí bezobslužný / CI běh použít |
 | `claude -p "..." --output-format json` | Headless výstup jako `json` nebo `stream-json` pro skripty |
 
@@ -55,8 +57,17 @@ supervizor proces) — zadáš práci, odejdeš a vrátíš se k ní později.
 | V `claude agents`? | Ne | Ano (attach / logs / stop) |
 | Sáhni po něm když | Skriptování, CI, jednorázovka k pipe/parsování | Dlouhý úkol, který zadáš a vracíš se k němu při další práci |
 
-Neplést s `/agents` (správa **subagentů** v aktuální session) ani s
-`claude --agent <název>` (spustí celou session *jako* pojmenovaného subagenta).
+Neplést se **subagenty** (definovanými v `.claude/agents/`, viz
+[Ukázka 5](05-agents.cs.md)) ani s `claude --agent <název>` (spustí celou session
+*jako* pojmenovaného subagenta).
+
+**Rozdělení práce mezi sessions** (2.1.212+):
+
+| Příkaz | Co dělá |
+|--------|---------|
+| `/fork [prompt]` | Zkopíruje konverzaci do **nové session na pozadí** a ty pracuješ dál tady |
+| `/subtask <task>` | Spustí forknutého **subagenta**, který zdědí konverzaci; jeho výsledek se vrátí sem (dřívější `/fork` v rámci session) |
+| `@<session-name>` v promptu | Zmíní jinou běžící session jménem a pošle jí zprávu (2.1.232+) |
 
 ## Slash příkazy
 
@@ -86,15 +97,16 @@ Napiš `/` pro automatické doplnění. Seskupené podle účelu:
 | `/memory` | Upraví trvalou paměť (soubory `CLAUDE.md`) |
 | `/init` | Vygeneruje startovní `CLAUDE.md` pro tohle repo |
 | `/status`, `/statusline` | Přehled stavu session / úprava spodní info lišty |
-| `/doctor` | Diagnostika rozbité instalace (auth, síť, závislosti) |
+| `/doctor` | Kompletní kontrola nastavení, která diagnostikuje a umí opravit problémy: zdraví instalace, `PATH`, nastavení, nepoužívané skills/MCP/pluginy (alias `/checkup`). `/doctor prompt-audit` zreviduje soubory s instrukcemi (Ukázka 7) |
 
-**Rozšíření** (šest mechanismů, které pokrývají průvodce)
+**Rozšíření** (mechanismy, které pokrývají průvodce)
 
 | Příkaz | Co dělá |
 |--------|---------|
 | `/skill-name` | Spustí skill, např. `/board-tests` (Ukázka 1) |
 | `/2048-dev:build-test` | Spustí skill zabalený v pluginu (Ukázka 4) |
-| `/agents` | Vytvoří / spravuje subagenty |
+| `/output-style [name]` | Vypíše nebo přepne output styles (Ukázka 8) |
+| `/skill-doctor` | Kontextová cena a využití jednotlivých skills (Ukázka 10) |
 | `/hooks` | Zobrazí / spravuje hooky |
 | `/mcp` | Zobrazí MCP servery a autorizuje je |
 | `/plugin` | Instaluje / spravuje pluginy a marketplaces |
@@ -105,7 +117,9 @@ Napiš `/` pro automatické doplnění. Seskupené podle účelu:
 |--------|---------|
 | `/help` | Vypíše všechny příkazy, zkratky a funkce |
 | `/usage` | Zbývající kapacita na tarifu Pro/Max |
-| `/cost` | Útrata v USD / tokenech za aktuální session (API billing) |
+| `/cost` | Útrata v USD / tokenech za aktuální session, vč. řádku pro prompt cache |
+| `/diff` | Zreviduje změny v pracovním stromu, včetně dosavadních úprav od Clauda |
+| `/code-review` (alias `/review`) | Zreviduje aktuální diff, PR, větev nebo cestu kvůli chybám ve správnosti |
 
 ## Klávesové zkratky
 
@@ -115,7 +129,7 @@ Napiš `/` pro automatické doplnění. Seskupené podle účelu:
 | `Ctrl+R` | Zpětné hledání v historii promptů/příkazů |
 | `Esc` | Zruší aktuální vstup / zavře menu |
 | `Esc Esc` | Otevře **Rewind** — obnoví dřívější checkpoint |
-| `Shift+Tab` | Cykluje režimy oprávnění (default → accept-edits → plan) |
+| `Shift+Tab` | Cykluje režimy oprávnění (manual → accept-edits → plan) |
 | `Ctrl+G` | Otevře plánovací soubor v editoru (v režimu Plan) |
 
 ## Vstupní prefixy
@@ -165,14 +179,15 @@ Kam se hook může navěsit v životním cyklu session (viz [Ukázka 2](02-hooks
 
 | Režim | Claude smí… |
 |-------|-------------|
-| **default** | Ptát se před každou úpravou a příkazem |
+| **Manual** (hodnota v konfiguraci `default`, alias `manual`) | Ptát se při prvním použití každého nástroje |
 | **acceptEdits** | Volně upravovat soubory, u shell příkazů se pořád ptá |
 | **plan** | Jen pro čtení — bádá a sepíše plán, nic nemění |
 | **bypassPermissions** | Cokoli bez ptaní („YOLO" — jen v sandboxu). Není v cyklu `Shift+Tab` — zapni ho explicitně přes `--dangerously-skip-permissions` |
 
 Dva další režimy existují mimo běžný cyklus `Shift+Tab` — **auto** (jedná
 s bezpečnostními kontrolami na pozadí) a **dontAsk** (jen předem schválené
-nástroje); viz [dokumentace režimů oprávnění](https://code.claude.com/docs/en/permission-modes).
+nástroje); viz [dokumentace režimů oprávnění](https://code.claude.com/docs/en/permission-modes) a
+[Ukázka 9](09-permissions-sandbox.cs.md) pro pravidla allow/ask/deny a sandbox.
 
 ## Modely a effort
 
@@ -218,8 +233,9 @@ příkazů fungují dál, ale nové věci dělej přes Skills:
 
 (Output styles zůstávají *samostatnou*, stále aktuální funkcí — mění systémový
 prompt, zatímco skills načítají instrukce k úloze — viz
-[dokumentace output styles](https://code.claude.com/docs/en/output-styles);
-deprecován byl jen samostatný příkaz `/output-style` ve prospěch `/config`.)
+[dokumentace output styles](https://code.claude.com/docs/en/output-styles) a
+[Ukázka 8](08-output-styles.cs.md). Příkaz `/output-style` byl krátce
+deprecovaný a vrátil se ve 2.1.269.)
 
 Skill je striktní nadmnožina starého příkazu: stejné vyvolání `/name`, **plus**
 volitelné autonomní načtení, složka pro pomocné soubory a řízení vyvolání. Chceš,

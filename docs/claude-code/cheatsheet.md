@@ -4,12 +4,14 @@
 
 The numbered guides teach you how to **extend** Claude Code ([skills](01-skills.md),
 [hooks](02-hooks.md), [MCP](03-mcp.md), [plugins](04-plugins.md),
-[subagents](05-agents.md), [workflows](06-workflows.md)). This page is the other
+[subagents](05-agents.md), [workflows](06-workflows.md), [rules](07-project-instructions.md),
+[output styles](08-output-styles.md), [permissions](09-permissions-sandbox.md),
+[evals](10-validate-eval.md)). This page is the other
 half: how to **operate**
 it day to day — the flags, slash commands, shortcuts, prefixes and hook events
 you reach for constantly but that don't each need a full guide.
 
-> ✅ **Verified against Claude Code 2.1.195 (2026-06-29).** The CLI surface
+> ✅ **Verified against Claude Code 2.1.283 (2026-10-05).** The CLI surface
 > changes between releases — check `claude --version` and the
 > [official docs](https://code.claude.com/docs/en/cli-reference) if something
 > here doesn't match.
@@ -26,7 +28,7 @@ you reach for constantly but that don't each need a full guide.
 | `claude --model opus` | Start on a specific model (`opus`, `sonnet`, `haiku`, `opusplan`) |
 | `claude --agent cpp-reviewer` | Run the whole session as a named subagent |
 | `claude --add-dir ../lib` | Give the session access to extra folders outside the repo |
-| `claude --permission-mode plan` | Start in a permission mode (`plan` / `acceptEdits` / `auto` / `dontAsk` / `bypassPermissions`) |
+| `claude --permission-mode plan` | Start in a permission mode (`manual` / `acceptEdits` / `plan` / `auto` / `dontAsk` / `bypassPermissions`) |
 | `claude -p "..." --allowedTools "Read,Edit,Bash(git diff *)"` | Allowlist the tools an unattended / CI run may use |
 | `claude -p "..." --output-format json` | Headless output as `json` or `stream-json` for scripts |
 
@@ -54,8 +56,17 @@ a supervisor process) — dispatch work, walk away, check back later.
 | In `claude agents`? | No | Yes (attach / logs / stop) |
 | Reach for it when | Scripting, CI, a one-off you pipe or parse | A long task you dispatch and revisit while you keep working |
 
-Not to be confused with `/agents` (manage **subagents** in the current session) or
-`claude --agent <name>` (run the whole session *as* a named subagent).
+Not to be confused with **subagents** (defined in `.claude/agents/`, see
+[Example 5](05-agents.md)) or `claude --agent <name>` (run the whole session
+*as* a named subagent).
+
+**Splitting work across sessions** (2.1.212+):
+
+| Command | What it does |
+|---------|--------------|
+| `/fork [prompt]` | Copy the conversation into a **new background session** and keep working here |
+| `/subtask <task>` | Spawn a forked **subagent** that inherits the conversation; its result returns here (the old in-session `/fork`) |
+| `@<session-name>` in the prompt | Mention another running session by name and send it a message (2.1.232+) |
 
 ## Slash commands
 
@@ -85,15 +96,16 @@ Type `/` to autocomplete. Grouped by what they're for:
 | `/memory` | Edit persistent memory (`CLAUDE.md` files) |
 | `/init` | Generate a starter `CLAUDE.md` for this repo |
 | `/status`, `/statusline` | Session health dashboard / customise the bottom info bar |
-| `/doctor` | Diagnose a broken install (auth, network, dependencies) |
+| `/doctor` | Full setup checkup that diagnoses and can fix issues: install health, `PATH`, settings, unused skills/MCP/plugins (alias `/checkup`). `/doctor prompt-audit` reviews instruction files (Example 7) |
 
-**Extensions** (the six mechanisms the guides cover)
+**Extensions** (the mechanisms the guides cover)
 
 | Command | What it does |
 |---------|--------------|
 | `/skill-name` | Run a skill, e.g. `/board-tests` (Example 1) |
 | `/2048-dev:build-test` | Run a plugin's bundled skill (Example 4) |
-| `/agents` | Create / manage subagents |
+| `/output-style [name]` | List or switch output styles (Example 8) |
+| `/skill-doctor` | Context cost and usage of each skill (Example 10) |
 | `/hooks` | View / manage hooks |
 | `/mcp` | View MCP servers and authorise them |
 | `/plugin` | Install / manage plugins and marketplaces |
@@ -104,7 +116,9 @@ Type `/` to autocomplete. Grouped by what they're for:
 |---------|--------------|
 | `/help` | List all commands, shortcuts and features |
 | `/usage` | Remaining capacity on a Pro/Max plan |
-| `/cost` | USD / token spend for the current session (API billing) |
+| `/cost` | USD / token spend for the current session, incl. a prompt-cache line |
+| `/diff` | Review the working-tree changes, including Claude's edits so far |
+| `/code-review` (alias `/review`) | Review the current diff, a PR, branch or path for correctness bugs |
 
 ## Keyboard shortcuts
 
@@ -114,7 +128,7 @@ Type `/` to autocomplete. Grouped by what they're for:
 | `Ctrl+R` | Reverse-search your prompt/command history |
 | `Esc` | Cancel the current input / close a menu |
 | `Esc Esc` | Open **Rewind** — restore an earlier checkpoint |
-| `Shift+Tab` | Cycle permission modes (default → accept-edits → plan) |
+| `Shift+Tab` | Cycle permission modes (manual → accept-edits → plan) |
 | `Ctrl+G` | Open the plan file in your editor (in Plan mode) |
 
 ## Input prefixes
@@ -164,14 +178,15 @@ Where a hook can attach in the session lifecycle (see [Example 2](02-hooks.md)):
 
 | Mode | Claude may… |
 |------|-------------|
-| **default** | Ask before every edit and command |
+| **Manual** (config value `default`, alias `manual`) | Ask on first use of each tool |
 | **acceptEdits** | Edit files freely, still ask before shell commands |
 | **plan** | Read-only — research and draft a plan, change nothing |
 | **bypassPermissions** | Do anything without asking ("YOLO" — sandbox only). Not in the `Shift+Tab` cycle — enable explicitly with `--dangerously-skip-permissions` |
 
 Two more modes exist beyond the everyday `Shift+Tab` cycle — **auto** (act with
 background safety checks) and **dontAsk** (only pre-approved tools); see the
-[permission-modes docs](https://code.claude.com/docs/en/permission-modes).
+[permission-modes docs](https://code.claude.com/docs/en/permission-modes) and
+[Example 9](09-permissions-sandbox.md) for allow/ask/deny rules and the sandbox.
 
 ## Models & effort
 
@@ -217,8 +232,9 @@ command files keep working, but new work should use Skills:
 
 (Output styles are a *separate*, still-current feature — they modify the system
 prompt, skills load task instructions — see the
-[output-styles docs](https://code.claude.com/docs/en/output-styles); only the
-standalone `/output-style` command was deprecated, in favour of `/config`.)
+[output-styles docs](https://code.claude.com/docs/en/output-styles) and
+[Example 8](08-output-styles.md). The `/output-style` command was briefly
+deprecated and came back in 2.1.269.)
 
 A skill is a strict superset of an old command: same `/name` invocation, **plus**
 optional autonomous loading, a supporting-files folder, and invocation control.
